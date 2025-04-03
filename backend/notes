@@ -1,0 +1,13 @@
+A Submission model generally tracks individual code submissions, especially for coding questions, while a QuizAttempt model tracks a user's overall attempt at a quiz.
+
+Coding Challenge Execution APIs
+    Run Code (without submission) (POST /api/coding/run)
+
+        Runs user code with sample test cases
+        Returns output
+    Submit Code for Evaluation (POST /api/coding/submit)
+
+        Runs user code against hidden test cases
+        Stores result in database
+
+so basically 5-10 decent number of question i have to fetch, so that if user leave early - we don't loose track.
