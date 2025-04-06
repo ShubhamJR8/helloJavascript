@@ -8,13 +8,27 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [selectedTopic, setSelectedTopic] = useState("");
   const [difficulty, setDifficulty] = useState("");
-  const [quizId, setQuizId] = useState(null);
+  const [showWarning, setShowWarning] = useState(false);
 
   const topics = ["javascript", "typescript", "react", "node"];
 
   const handleStartQuiz = async () => {
-    const data = await startQuizAttempt(selectedTopic, difficulty);
-    if (data.success) setQuizId(data.attemptId);
+    if (!difficulty) {
+      setShowWarning(true);
+      return;
+    }
+
+    try {
+      const data = await startQuizAttempt(selectedTopic, difficulty);
+      if (data.success) {
+        navigate(`/quiz/${data.attemptId}`);
+      } else {
+        alert("Failed to start quiz. Please try again.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong.");
+    }
   };
 
   return (
@@ -38,8 +52,13 @@ const HomePage = () => {
         {topics.map((topic) => (
           <button
             key={topic}
-            onClick={() => setSelectedTopic(topic)}
-            className={`px-6 py-3 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl ${selectedTopic === topic ? "bg-teal-400 text-white scale-110" : "bg-gray-800 hover:bg-teal-600 hover:scale-105"}`}
+            onClick={() => {
+              setSelectedTopic(topic);
+              setShowWarning(false);
+            }}
+            className={`px-6 py-3 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl ${
+              selectedTopic === topic ? "bg-teal-400 text-white scale-110" : "bg-gray-800 hover:bg-teal-600 hover:scale-105"
+            }`}
           >
             {topic}
           </button>
@@ -48,26 +67,37 @@ const HomePage = () => {
 
       {/* Difficulty Selection */}
       {selectedTopic && (
-        <motion.div 
-          className="mt-4 flex gap-4"
-          initial={{ opacity: 0, scale: 0.8 }} 
-          animate={{ opacity: 1, scale: 1 }} 
-          transition={{ duration: 0.6 }}
-        >
-          {["easy", "medium", "hard"].map((level) => (
-            <button
-              key={level}
-              onClick={() => setDifficulty(level)}
-              className={`px-6 py-2 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl ${
-                difficulty === level 
-                  ? "bg-teal-400 text-white scale-110" 
-                  : "bg-gray-800 hover:bg-teal-600 hover:scale-105"
-              }`}
-            >
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-            </button>
-          ))}
-        </motion.div>
+        <>
+          <motion.div 
+            className="mt-4 flex gap-4"
+            initial={{ opacity: 0, scale: 0.8 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            transition={{ duration: 0.6 }}
+          >
+            {["easy", "medium", "hard"].map((level) => (
+              <button
+                key={level}
+                onClick={() => {
+                  setDifficulty(level);
+                  setShowWarning(false);
+                }}
+                className={`px-6 py-2 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl ${
+                  difficulty === level 
+                    ? "bg-teal-400 text-white scale-110" 
+                    : "bg-gray-800 hover:bg-teal-600 hover:scale-105"
+                }`}
+              >
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </button>
+            ))}
+          </motion.div>
+
+          {showWarning && !difficulty && (
+            <p className="text-red-500 font-semibold mt-2">
+              Please select a difficulty level to start the quiz.
+            </p>
+          )}
+        </>
       )}
 
       {/* Buttons */}
@@ -95,14 +125,21 @@ const HomePage = () => {
 
       {/* Additional Features */}
       <motion.div className="mt-12 grid grid-cols-2 gap-6 w-3/4 max-w-4xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.5 }}>
-        {[{ text: "Daily JavaScript Challenge", icon: <FaRocket />, link: "/daily-javascript-challenge" },
+        {[
+          { text: "Daily JavaScript Challenge", icon: <FaRocket />, link: "/daily-javascript-challenge" },
           { text: "Concept and Output Based MCQs", icon: <FaBrain />, link: "/concept-based-mcqs" },
           { text: "Machine Coding Questions", icon: <FaLaptopCode />, link: "/coding-questions" },
           { text: "JavaScript Concepts Explained Visually", icon: <FaCode />, link: "/javascript-concepts-visual" },
           { text: "Mock Interviews & Feedback Report", icon: <FaComments />, link: "/mock-interviews" },
           { text: "Job Listings", icon: <FaBriefcase />, link: "/job-listings" },
-          { text: "JavaScript Blogs", icon: <FaCode />, link: "/blogs" },].map(({ text, icon, link }) => (
-          <motion.button key={text} onClick={() => navigate(link)} className="flex items-center gap-3 px-6 py-3 bg-gray-800 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-all shadow-xl" whileHover={{ scale: 1.50 }}>
+          { text: "JavaScript Blogs", icon: <FaCode />, link: "/blogs" },
+        ].map(({ text, icon, link }) => (
+          <motion.button
+            key={text}
+            onClick={() => navigate(link)}
+            className="flex items-center gap-3 px-6 py-3 bg-gray-800 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-all shadow-xl"
+            whileHover={{ scale: 1.08 }}
+          >
             {icon} {text}
           </motion.button>
         ))}
