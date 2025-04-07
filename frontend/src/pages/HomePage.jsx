@@ -21,7 +21,7 @@ const HomePage = () => {
     try {
       const data = await startQuizAttempt(selectedTopic, difficulty);
       if (data.success) {
-        navigate(`/quiz/${data.attemptId}`);
+        navigate(`/quizAttempt/${selectedTopic}/${difficulty}?attemptId=${data.attemptId}`);
       } else {
         alert("Failed to start quiz. Please try again.");
       }
