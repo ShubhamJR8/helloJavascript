@@ -4,6 +4,9 @@ import morgan from 'morgan';
 import jobRoutes from './routes/jobRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import questionRoutes from './routes/questionRoutes.js';
+import submissionRoutes from './routes/submissionRoutes.js';
+import quizAttemptRoutes from './routes/quizAttemptRoutes.js';
 
 const app = express();
 
@@ -16,6 +19,9 @@ app.use(morgan('dev'));
 app.use('/api/jobs', jobRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/questions', questionRoutes);
+app.use('/api/submissions', submissionRoutes);
+app.use('/api/quiz-attempts', quizAttemptRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

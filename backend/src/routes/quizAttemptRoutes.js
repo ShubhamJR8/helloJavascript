@@ -8,23 +8,27 @@ import {
     getQuizAttemptDetails,
     getQuizAnalytics,
 } from "../controllers/quizAttemptController.js";
-import authMiddleware from "../middlewares/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { validateStartQuizAttempt, validateCompleteQuizAttempt } from "../middleware/validationMiddleware.js";
 
 const router = express.Router();
 
+// Apply authentication to all routes
+router.use(protect);
+
 // Start a new quiz attempt
-router.post("/start", startQuizAttempt);
+router.post("/start", validateStartQuizAttempt, startQuizAttempt);
 
 // Submit an answer for a quiz question
 // router.post("/submit", submitQuizAnswer);
 
 // Mark quiz attempt as completed
-router.post("/complete", completeQuizAttempt);
+router.post("/complete", validateCompleteQuizAttempt, completeQuizAttempt);
 
-// Get all quiz attempts for a user
-router.get("/user/:userId", getUserQuizAttempts);
+// Get all quiz attempts for the current user
+router.get("/user/attempts", getUserQuizAttempts);
 
-// Get analytics for a quiz
+// Get quiz analytics
 router.get("/analytics", getQuizAnalytics);
 
 // Get details of a specific quiz attempt
