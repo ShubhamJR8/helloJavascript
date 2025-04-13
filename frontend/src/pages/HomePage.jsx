@@ -14,20 +14,49 @@ const HomePage = () => {
 
   const handleStartQuiz = async () => {
     if (!difficulty) {
+      console.warn('[Start Quiz] No difficulty selected');
       setShowWarning(true);
       return;
     }
 
+    if (!selectedTopic) {
+      console.warn('[Start Quiz] No topic selected');
+      return;
+    }
+
+    console.log('[Start Quiz] Starting quiz with:', {
+      topic: selectedTopic,
+      difficulty: difficulty,
+      timestamp: new Date().toISOString()
+    });
+
     try {
+      console.log('[Start Quiz] Calling API...');
       const data = await startQuizAttempt(selectedTopic, difficulty);
+      
+      console.log('[Start Quiz] API Response:', data);
+      
       if (data.success) {
+        console.log('[Start Quiz] Success, navigating to quiz page:', data.attemptId);
         navigate(`/quizAttempt/${selectedTopic}/${difficulty}?attemptId=${data.attemptId}`);
       } else {
-        alert("Failed to start quiz. Please try again.");
+        console.error('[Start Quiz] API returned failure:', data);
+        alert(data.message || "Failed to start quiz. Please try again.");
       }
     } catch (error) {
-      console.error(error);
-      alert("Something went wrong.");
+      console.error('[Start Quiz] Error:', {
+        message: error.message,
+        response: error.response?.data,
+        stack: error.stack
+      });
+
+      if (error.response?.status === 401) {
+        // Token is missing or invalid, redirect to login
+        console.log('[Start Quiz] Authentication required, redirecting to login');
+        navigate('/login', { state: { from: '/', message: 'Please login to start a quiz' } });
+      } else {
+        alert("Something went wrong. Please try again.");
+      }
     }
   };
 

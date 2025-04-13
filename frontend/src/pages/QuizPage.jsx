@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { completeQuizAttempt } from "../apis/quizApi";
-import axios from "axios";
+import { completeQuizAttempt, getQuizAttemptDetails } from "../apis/quizApi";
 import { motion } from "framer-motion";
 
 const QuizPage = () => {
@@ -12,47 +11,44 @@ const QuizPage = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [attemptId, setAttemptId] = useState(null);
+  const [error, setError] = useState(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
     const fetchAttemptAndQuestions = async () => {
       try {
-        const userId = "67c43cd75193cf13c7814422"; // change to dynamic later
-        const attemptRes = await axios.get(
-          `http://localhost:5000/api/quiz-attempts/user/${userId}`
-        );
+        setLoading(true);
+        setError(null);
 
-        const attempt = attemptRes.data.attempts.find(
-          (a) => a.status === "in-progress"
-        );
+        // Get the attempt ID from the URL
+        const attemptId = window.location.pathname.split('/').pop();
+        if (!attemptId) {
+          throw new Error("No attempt ID found");
+        }
 
-        if (!attempt) {
-          console.warn("No active quiz attempt found.");
-          return;
+        // Fetch attempt details using the API service
+        const attemptResponse = await getQuizAttemptDetails(attemptId);
+        if (!attemptResponse.success) {
+          throw new Error(attemptResponse.message || "Failed to fetch attempt details");
+        }
+
+        const attempt = attemptResponse.data;
+        if (!attempt || attempt.status !== "in-progress") {
+          throw new Error("No active quiz attempt found");
         }
 
         setAttemptId(attempt._id);
+        setQuestions(attempt.questions.map(q => ({
+          id: q.questionId._id,
+          question: q.questionId.question,
+          options: q.questionId.options,
+          timeLimit: q.questionId.timeLimit || 30,
+          type: q.questionId.type
+        })));
 
-        const questionIds = attempt.questions.map((q) => q.questionId);
-        const questionPromises = questionIds.map((id) =>
-          axios.get(`http://localhost:5000/api/questions/${id}`)
-        );
-
-        const responses = await Promise.all(questionPromises);
-
-        const formattedQuestions = responses.map((res) => {
-          const q = res.data.question;
-          return {
-            id: q._id,
-            question: q.question,
-            options: q.options,
-            timeLimit: 30, // default 30 sec per question
-          };
-        });
-
-        setQuestions(formattedQuestions);
       } catch (error) {
         console.error("Error in fetchAttemptAndQuestions:", error);
+        setError(error.message || "Failed to load quiz");
       } finally {
         setLoading(false);
       }
@@ -88,78 +84,146 @@ const QuizPage = () => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
-      // ✅ Transform selectedAnswers into array format
-      const transformedAnswers = Object.entries(selectedAnswers).map(([questionId, selectedOption]) => ({
-        questionId,
-        selectedOption,
-        submittedCode: "",      // default for now
-        isCorrect: false,       // backend will validate
-        timeTaken: 0            // optional if you're not tracking
-      }));
-  
       try {
+        setLoading(true);
+        setError(null);
+
+        // Transform selectedAnswers into array format
+        const transformedAnswers = Object.entries(selectedAnswers).map(([questionId, selectedOption]) => {
+          const question = questions.find(q => q.id === questionId);
+          return {
+            questionId,
+            selectedOption,
+            submittedCode: "",      // default for now
+            isCorrect: false,       // backend will validate
+            timeTaken: question?.timeLimit - timeLeft || 0
+          };
+        });
+
         const response = await completeQuizAttempt(attemptId, transformedAnswers);
-        console.log("response", response);
+        
         if (response.success) {
-          navigate(`/result/${response.attemptId}`, {
+          navigate(`/result/${response.data.attemptId}`, {
             state: {
-              totalScore: response.totalScore,
-              correctAnswers: response.correctAnswers,
-              attemptId: response.attemptId,
+              totalScore: response.data.totalScore,
+              correctAnswers: response.data.correctAnswers,
+              attemptId: response.data.attemptId,
             },
           });
+        } else {
+          throw new Error(response.message || "Failed to submit quiz");
         }
       } catch (error) {
         console.error("Error submitting quiz:", error);
+        setError(error.message || "Failed to submit quiz");
+      } finally {
+        setLoading(false);
       }
     }
   };
-  
 
-  if (loading) return <div className="text-center text-white mt-10">Loading quiz...</div>;
-  if (!questions.length) return <div className="text-center text-white mt-10">No questions available.</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mx-auto"></div>
+          <p className="mt-4">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
+        <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-bold text-red-400 mb-2">Error</h2>
+          <p className="mb-4">{error}</p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!questions.length) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
+        <div className="bg-gray-800 p-6 rounded-xl text-center">
+          <p className="text-xl">No questions available.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-4 px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const currentQ = questions[currentIndex];
 
   return (
-    <div className="w-full h-screen flex flex-col justify-center items-center bg-gray-900 text-white p-6">
+    <div className="w-full min-h-screen flex flex-col justify-center items-center bg-gray-900 text-white p-6">
       <motion.h1
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-4xl font-bold text-teal-400"
+        className="text-4xl font-bold text-teal-400 mb-8"
       >
         Quiz
       </motion.h1>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="mt-6 p-6 bg-gray-800 rounded-xl shadow-lg w-3/4 text-center"
-      >
-        <h2 className="text-2xl font-semibold">{currentQ.question}</h2>
-        <p className="text-red-400 font-bold">Time Left: {timeLeft}s</p>
-      </motion.div>
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 w-3/4">
-        {currentQ.options.map((option, index) => (
-          <motion.button
-            key={index}
-            onClick={() => handleAnswerSelect(currentQ.id, option)}
-            className={`p-4 rounded-lg font-semibold transition-all duration-300 text-lg text-center shadow-md ${
-              selectedAnswers[currentQ.id] === option
-                ? "bg-teal-500"
-                : "bg-gray-800 hover:bg-teal-600"
-            }`}
+
+      <div className="w-full max-w-4xl">
+        <div className="flex justify-between items-center mb-6">
+          <span className="text-gray-400">
+            Question {currentIndex + 1} of {questions.length}
+          </span>
+          <span className="text-red-400 font-bold">
+            Time Left: {timeLeft}s
+          </span>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="p-6 bg-gray-800 rounded-xl shadow-lg"
+        >
+          <h2 className="text-2xl font-semibold mb-6">{currentQ.question}</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {currentQ.options.map((option, index) => (
+              <motion.button
+                key={index}
+                onClick={() => handleAnswerSelect(currentQ.id, option)}
+                className={`p-4 rounded-lg font-semibold transition-all duration-300 text-lg text-center shadow-md ${
+                  selectedAnswers[currentQ.id] === option
+                    ? "bg-teal-500"
+                    : "bg-gray-700 hover:bg-teal-600"
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {option}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={handleNext}
+            className="px-8 py-3 bg-teal-500 text-white text-lg font-semibold rounded-lg hover:bg-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!selectedAnswers[currentQ.id] && timeLeft > 0}
           >
-            {option}
-          </motion.button>
-        ))}
+            {currentIndex < questions.length - 1 ? "Next Question" : "Submit Quiz"}
+          </button>
+        </div>
       </div>
-      <button
-        onClick={handleNext}
-        className="mt-6 px-8 py-3 bg-teal-500 text-white text-lg font-semibold rounded-lg hover:bg-teal-600 transition-all"
-        disabled={!selectedAnswers[currentQ.id] && timeLeft > 0}
-      >
-        {currentIndex < questions.length - 1 ? "Next Question" : "Submit Quiz"}
-      </button>
     </div>
   );
 };

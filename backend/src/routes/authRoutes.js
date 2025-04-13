@@ -1,28 +1,33 @@
 import express from "express";
-import { registerUser, loginUser, getUserProfile, getUserById, getAllUsers, deleteUser, updateUserProfile } from "../controllers/authController.js";
-import authMiddleware from "../middlewares/authMiddleware.js";
+import {
+  registerUser,
+  loginUser,
+  getUserProfile,
+  getUserById,
+  getAllUsers,
+  deleteUser,
+  updateUserProfile,
+} from "../controllers/authController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// User Authentication Routes
+// Public routes
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 
-// User Profile Routes
-router
-  .route("/profile")
-  .get(authMiddleware, getUserProfile);
+// Protected routes
+router.get("/profile", protect, getUserProfile);
+router.put("/profile", protect, updateUserProfile);
 
 // Routes for User Operations
 router
   .route("/:id")
-  .get(authMiddleware, getUserById)
-  .put(authMiddleware, updateUserProfile)
-  .delete(authMiddleware, deleteUser);
+  .get(protect, getUserById)
+  .delete(protect, deleteUser);
 
 router
   .route("/")
-  .get(authMiddleware, getAllUsers);
-
+  .get(protect, getAllUsers);
 
 export default router;
