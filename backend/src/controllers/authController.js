@@ -2,47 +2,150 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// User Registration
+// @desc    Register new user
+// @route   POST /api/auth/register
+// @access  Public
 export const registerUser = async (req, res) => {
   try {
+    console.log('=== Registration Attempt ===');
+    console.log('Request body:', { ...req.body, password: '***' });
+    
     const { name, email, password } = req.body;
 
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "User already exists" });
+    // Validate input
+    if (!name || !email || !password) {
+      console.log('Missing required fields');
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide all required fields'
+      });
+    }
 
-    // Hash Password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Check if user exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      console.log('User already exists with email:', email);
+      return res.status(400).json({
+        success: false,
+        error: 'User already exists'
+      });
+    }
 
-    // Create User
-    user = new User({ name, email, password: hashedPassword });
-    await user.save();
+    // Create user
+    console.log('Creating new user...');
+    const user = await User.create({
+      name,
+      email,
+      password: password.trim() // Ensure password is trimmed
+    });
 
-    res.status(201).json({ message: "User registered successfully" });
+    console.log('User created successfully:', { 
+      id: user._id, 
+      email: user.email,
+      hasPassword: !!user.password
+    });
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    console.log('Token generated successfully');
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
+    });
+
   } catch (error) {
-    res.status(500).json({ message: "Error registering user", error });
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error during registration'
+    });
   }
 };
 
-// User Login
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
 export const loginUser = async (req, res) => {
   try {
+    console.log('=== Login Attempt ===');
+    console.log('Request body:', { ...req.body, password: '***' });
+
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
 
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+    // Validate input
+    if (!email || !password) {
+      console.log('Missing email or password');
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide email and password'
+      });
+    }
 
-    // Compare Password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+    // Check for user
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      console.log('User not found with email:', email);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials'
+      });
+    }
 
-    // Generate JWT Token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    console.log('User found:', {
+      id: user._id,
+      email: user.email,
+      hasPassword: !!user.password
+    });
 
-    res.status(200).json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    // Check password
+    console.log('Attempting password comparison...');
+    const isMatch = await user.matchPassword(password);
+    console.log('Password match result:', isMatch);
+    
+    if (!isMatch) {
+      console.log('Password mismatch for user:', email);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials'
+      });
+    }
+
+    console.log('Login successful for user:', email);
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
+    });
+
   } catch (error) {
-    res.status(500).json({ message: "Error logging in", error });
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error during login'
+    });
   }
 };
 
