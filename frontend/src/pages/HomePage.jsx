@@ -38,7 +38,7 @@ const HomePage = () => {
       
       if (data.success) {
         console.log('[Start Quiz] Success, navigating to quiz page:', data.attemptId);
-        navigate(`/quiz/${data.attemptId}`);
+        navigate(`/quizAttempt/${selectedTopic}/${difficulty}?attemptId=${data.attemptId}`);
       } else {
         console.error('[Start Quiz] API returned failure:', data);
         alert(data.message || "Failed to start quiz. Please try again.");
