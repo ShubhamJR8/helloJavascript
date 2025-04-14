@@ -11,47 +11,50 @@ const ResultPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchResult = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // First try to get data from location state
         if (location.state) {
+          // Use data from navigation state
           setResult(location.state);
           setLoading(false);
           return;
         }
 
-        // If no state, fetch from API using URL attemptId
+        // Only fetch from API if we have a valid attemptId and no state data
         if (urlAttemptId) {
           const response = await getQuizAttemptDetails(urlAttemptId);
           if (response.success) {
             setResult({
               totalScore: response.data.totalScore,
               correctAnswers: response.data.correctAnswers,
+              totalQuestions: response.data.totalQuestions,
               attemptId: response.data._id,
               topic: response.data.topic,
               difficulty: response.data.difficulty,
               timeTaken: response.data.timeTaken,
-              questions: response.data.questions
+              questions: response.data.questions.map(q => ({
+                ...q,
+                userAnswer: q.selectedOption || q.submittedCode
+              }))
             });
           } else {
-            throw new Error(response.message || "Failed to fetch result");
+            setError(response.message || "Failed to fetch result");
           }
         } else {
-          throw new Error("No attempt ID found");
+          setError("No attempt ID found");
         }
-      } catch (error) {
-        console.error("Error fetching result:", error);
-        setError(error.message);
+      } catch (err) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchResult();
-  }, [location.state, urlAttemptId]);
+    fetchData();
+  }, [urlAttemptId, location.state]);
 
   const handleRetryQuiz = () => {
     if (result?.topic && result?.difficulty) {
@@ -96,7 +99,7 @@ const ResultPage = () => {
       <h1 className="text-4xl font-bold text-teal-400 mb-4">Quiz Completed!</h1>
       
       <div className="bg-gray-800 p-6 rounded-xl shadow-md text-center w-full max-w-md mb-6">
-        <p className="text-xl font-semibold mb-2">Total Score: {result.totalScore}%</p>
+        <p className="text-xl font-semibold mb-2">Total Questions: {result.totalQuestions}</p>
         <p className="text-lg mb-2">Correct Answers: {result.correctAnswers}</p>
         {result.timeTaken && (
           <p className="text-lg mb-2">Time Taken: {Math.floor(result.timeTaken / 60)}m {result.timeTaken % 60}s</p>

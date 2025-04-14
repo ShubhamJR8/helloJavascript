@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { completeQuizAttempt, getQuizAttemptDetails } from "../apis/quizApi";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { completeQuizAttempt, getQuizAttemptDetails, startQuizAttempt } from "../apis/quizApi";
 import { motion } from "framer-motion";
+
+// Constants for validation
+const VALID_DIFFICULTIES = ['easy', 'medium', 'hard'];
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 1000; // 1 second
 
 const QuizPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { topic, difficulty } = useParams();
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
@@ -12,50 +19,154 @@ const QuizPage = () => {
   const [loading, setLoading] = useState(true);
   const [attemptId, setAttemptId] = useState(null);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const timerRef = useRef(null);
+  const autoSaveTimerRef = useRef(null);
+
+  // Validate quiz parameters
+  const validateQuizParams = () => {
+    if (!topic) {
+      throw new Error("Topic is required");
+    }
+    if (!difficulty || !VALID_DIFFICULTIES.includes(difficulty)) {
+      throw new Error(`Invalid difficulty. Must be one of: ${VALID_DIFFICULTIES.join(', ')}`);
+    }
+  };
+
+  // Auto-save progress
+  const autoSaveProgress = () => {
+    if (attemptId && questions.length > 0) {
+      const progress = {
+        attemptId,
+        currentIndex,
+        selectedAnswers,
+        timeLeft,
+        lastSaved: new Date().toISOString()
+      };
+      localStorage.setItem(`quiz_progress_${attemptId}`, JSON.stringify(progress));
+    }
+  };
+
+  // Load saved progress
+  const loadSavedProgress = (savedAttemptId) => {
+    const savedProgress = localStorage.getItem(`quiz_progress_${savedAttemptId}`);
+    if (savedProgress) {
+      const progress = JSON.parse(savedProgress);
+      setCurrentIndex(progress.currentIndex);
+      setSelectedAnswers(progress.selectedAnswers);
+      setTimeLeft(progress.timeLeft);
+      return true;
+    }
+    return false;
+  };
+
+  // Retry mechanism for API calls
+  const retryOperation = async (operation, maxRetries = MAX_RETRY_ATTEMPTS) => {
+    let lastError;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        if (i < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (i + 1)));
+        }
+      }
+    }
+    throw lastError;
+  };
 
   useEffect(() => {
     const fetchAttemptAndQuestions = async () => {
       try {
         setLoading(true);
         setError(null);
+        validateQuizParams();
 
-        // Get the attempt ID from the URL
-        const attemptId = window.location.pathname.split('/').pop();
-        if (!attemptId) {
-          throw new Error("No attempt ID found");
+        // Get the attempt ID from location state or create a new attempt
+        let attemptId = location.state?.attemptId;
+        let attemptData = location.state?.data;
+        
+        if (!attemptId || !attemptData) {
+          // Create a new quiz attempt with retry mechanism
+          const startResponse = await retryOperation(async () => {
+            const response = await startQuizAttempt(topic, difficulty);
+            if (!response.success) {
+              throw new Error(response.message || "Failed to start quiz attempt");
+            }
+            return response;
+          });
+
+          attemptId = startResponse.attemptId;
+          attemptData = startResponse.data;
+
+          // Clear any old progress
+          localStorage.removeItem(`quiz_progress_${attemptId}`);
+        } else {
+          // Try to load saved progress
+          loadSavedProgress(attemptId);
         }
 
-        // Fetch attempt details using the API service
-        const attemptResponse = await getQuizAttemptDetails(attemptId);
-        if (!attemptResponse.success) {
-          throw new Error(attemptResponse.message || "Failed to fetch attempt details");
+        // Validate attempt data
+        if (!attemptData || !attemptData.questions || !Array.isArray(attemptData.questions)) {
+          console.error('Invalid attempt data:', attemptData);
+          throw new Error("Invalid quiz attempt data: missing or invalid questions");
         }
 
-        const attempt = attemptResponse.data;
-        if (!attempt || attempt.status !== "in-progress") {
-          throw new Error("No active quiz attempt found");
+        // Ensure questions are populated with proper validation
+        const populatedQuestions = attemptData.questions.map(q => {
+          if (!q.questionId || !q.questionId._id) {
+            throw new Error("Invalid question data: missing question ID");
+          }
+          if (!q.questionId.question) {
+            throw new Error("Invalid question data: missing question text");
+          }
+          if (q.questionId.type === 'mcq' && (!q.questionId.options || !Array.isArray(q.questionId.options))) {
+            throw new Error("Invalid question data: MCQ questions must have options array");
+          }
+          return {
+            id: q.questionId._id,
+            question: q.questionId.question,
+            options: q.questionId.options || [],
+            timeLimit: q.questionId.timeLimit || 30,
+            type: q.questionId.type || 'mcq',
+            correctAnswer: q.questionId.correctAnswer
+          };
+        });
+
+        if (populatedQuestions.length === 0) {
+          throw new Error("No questions available for this quiz");
         }
 
-        setAttemptId(attempt._id);
-        setQuestions(attempt.questions.map(q => ({
-          id: q.questionId._id,
-          question: q.questionId.question,
-          options: q.questionId.options,
-          timeLimit: q.questionId.timeLimit || 30,
-          type: q.questionId.type
-        })));
+        setAttemptId(attemptId);
+        setQuestions(populatedQuestions);
+
+        // Set up auto-save
+        autoSaveTimerRef.current = setInterval(autoSaveProgress, 30000); // Auto-save every 30 seconds
 
       } catch (error) {
         console.error("Error in fetchAttemptAndQuestions:", error);
         setError(error.message || "Failed to load quiz");
+        if (retryCount < MAX_RETRY_ATTEMPTS) {
+          setRetryCount(prev => prev + 1);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchAttemptAndQuestions();
-  }, []);
+
+    // Cleanup
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+      }
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [location.state, topic, difficulty, retryCount]);
 
   useEffect(() => {
     if (questions.length > 0) {
@@ -76,7 +187,21 @@ const QuizPage = () => {
   }, [timeLeft]);
 
   const handleAnswerSelect = (questionId, answer) => {
-    setSelectedAnswers((prev) => ({ ...prev, [questionId]: answer }));
+    setSelectedAnswers((prev) => {
+      const newAnswers = { ...prev, [questionId]: answer };
+      // Auto-save on answer change
+      if (attemptId) {
+        const progress = {
+          attemptId,
+          currentIndex,
+          selectedAnswers: newAnswers,
+          timeLeft,
+          lastSaved: new Date().toISOString()
+        };
+        localStorage.setItem(`quiz_progress_${attemptId}`, JSON.stringify(progress));
+      }
+      return newAnswers;
+    });
     clearTimeout(timerRef.current);
   };
 
@@ -88,31 +213,55 @@ const QuizPage = () => {
         setLoading(true);
         setError(null);
 
-        // Transform selectedAnswers into array format
-        const transformedAnswers = Object.entries(selectedAnswers).map(([questionId, selectedOption]) => {
-          const question = questions.find(q => q.id === questionId);
+        // Validate all questions are answered
+        const unansweredQuestions = questions.filter(
+          q => !selectedAnswers[q.id] && q.type === 'mcq'
+        );
+        if (unansweredQuestions.length > 0) {
+          throw new Error(`Please answer all questions before submitting. Unanswered questions: ${unansweredQuestions.length}`);
+        }
+
+        // Transform selectedAnswers into array format with validation
+        const transformedAnswers = questions.map(q => {
+          const answer = selectedAnswers[q.id];
+          if (!answer && q.type === 'mcq') {
+            throw new Error(`Missing answer for question: ${q.question}`);
+          }
           return {
-            questionId,
-            selectedOption,
-            submittedCode: "",      // default for now
-            isCorrect: false,       // backend will validate
-            timeTaken: question?.timeLimit - timeLeft || 0
+            questionId: q.id,
+            selectedOption: answer,
+            submittedCode: q.type === 'coding' ? answer : "",
+            timeTaken: q.timeLimit - timeLeft || 0
           };
         });
 
-        const response = await completeQuizAttempt(attemptId, transformedAnswers);
+        // Submit with retry mechanism
+        const response = await retryOperation(async () => {
+          const result = await completeQuizAttempt(attemptId, transformedAnswers);
+          if (!result.success) {
+            throw new Error(result.message || "Failed to submit quiz");
+          }
+          return result;
+        });
+
+        // Clear saved progress
+        localStorage.removeItem(`quiz_progress_${attemptId}`);
         
-        if (response.success) {
-          navigate(`/result/${response.data.attemptId}`, {
-            state: {
-              totalScore: response.data.totalScore,
-              correctAnswers: response.data.correctAnswers,
-              attemptId: response.data.attemptId,
-            },
-          });
-        } else {
-          throw new Error(response.message || "Failed to submit quiz");
-        }
+        // Navigate to result page with the response data
+        navigate(`/result/${response.data.attemptId}`, {
+          state: {
+            totalScore: response.data.totalScore,
+            correctAnswers: response.data.correctAnswers,
+            totalQuestions: response.data.totalQuestions,
+            attemptId: response.data.attemptId,
+            topic: topic,
+            difficulty: difficulty,
+            questions: questions.map(q => ({
+              ...q,
+              userAnswer: selectedAnswers[q.id]
+            }))
+          },
+        });
       } catch (error) {
         console.error("Error submitting quiz:", error);
         setError(error.message || "Failed to submit quiz");
