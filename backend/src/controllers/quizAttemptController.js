@@ -10,48 +10,33 @@ export const startQuizAttempt = async (req, res) => {
     
     console.log(`[START QUIZ ATTEMPT] User: ${userId}, Topic: ${topic}, Difficulty: ${difficulty}`);
 
-    // Fetch existing completed attempts
-    const previousAttempts = await QuizAttempt.find({ 
-      user: userId, 
-      topic, 
-      status: "completed" 
-    });
-
-    // Collect all correctly answered questions from past attempts
-    const correctQuestionIds = new Set();
-    previousAttempts.forEach(attempt => {
-      attempt.questions.forEach(q => {
-        if (q.isCorrect) correctQuestionIds.add(q.questionId.toString());
-      });
-    });
-
-    // Fetch new set of questions excluding correctly answered ones
-    const newQuestions = await Question.find({ 
-      topic, 
-      difficulty, 
-      _id: { $nin: Array.from(correctQuestionIds) } 
-    }).limit(10); // Adjust limit as needed
-
-    if (!newQuestions.length) {
-      console.warn(`[NO QUESTIONS AVAILABLE] User ID: ${userId}`);
-      return res.status(200).json({ 
-        success: false, 
-        message: "No new questions available" 
-      });
-    }
-
     // Check if there is an existing in-progress attempt
     let existingAttempt = await QuizAttempt.findOne({ 
       user: userId, 
       topic, 
       status: "in-progress" 
-    });
+    }).populate('questions.questionId');
 
     if (existingAttempt) {
       console.log(`[RESUMING ATTEMPT] Attempt ID: ${existingAttempt._id}`);
       return res.status(200).json({ 
         success: true, 
-        attemptId: existingAttempt._id 
+        attemptId: existingAttempt._id,
+        data: existingAttempt
+      });
+    }
+
+    // Fetch questions for the new attempt
+    const questions = await Question.find({ 
+      topic, 
+      difficulty
+    }).limit(10);
+
+    if (!questions.length) {
+      console.warn(`[NO QUESTIONS AVAILABLE] Topic: ${topic}, Difficulty: ${difficulty}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: "No questions available for this topic and difficulty" 
       });
     }
 
@@ -60,19 +45,24 @@ export const startQuizAttempt = async (req, res) => {
       user: userId,
       topic,
       difficulty,
-      questions: newQuestions.map(q => ({ 
-        questionId: q._id, 
-        isCorrect: false 
+      questions: questions.map(q => ({ 
+        questionId: q._id
       })),
-      totalQuestions: newQuestions.length,
+      totalQuestions: questions.length,
+      status: "in-progress"
     });
 
     await newAttempt.save();
     console.log(`[NEW ATTEMPT CREATED] Attempt ID: ${newAttempt._id}`);
 
+    // Populate the questions before sending response
+    const populatedAttempt = await QuizAttempt.findById(newAttempt._id)
+      .populate('questions.questionId');
+
     res.status(201).json({ 
       success: true, 
-      attemptId: newAttempt._id 
+      attemptId: newAttempt._id,
+      data: populatedAttempt
     });
   } catch (error) {
     console.error(`[ERROR] Start Quiz Attempt:`, error);
@@ -89,10 +79,15 @@ export const completeQuizAttempt = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
     const userId = req.user._id;
+    
+    console.log(`[COMPLETE QUIZ ATTEMPT] User: ${userId}, Attempt: ${attemptId}, Answers count: ${answers.length}`);
 
-    // Find the current quiz attempt
-    const currentAttempt = await QuizAttempt.findById(attemptId);
+    // Find the current quiz attempt with populated question data
+    const currentAttempt = await QuizAttempt.findById(attemptId)
+      .populate('questions.questionId');
+      
     if (!currentAttempt) {
+      console.warn(`[ATTEMPT NOT FOUND] Attempt ID: ${attemptId}`);
       return res.status(404).json({ 
         success: false, 
         message: "Quiz attempt not found" 
@@ -101,6 +96,7 @@ export const completeQuizAttempt = async (req, res) => {
 
     // Verify user ownership
     if (currentAttempt.user.toString() !== userId.toString()) {
+      console.warn(`[UNAUTHORIZED] User ${userId} trying to complete attempt ${attemptId} owned by ${currentAttempt.user}`);
       return res.status(403).json({ 
         success: false, 
         message: "Not authorized to complete this attempt" 
@@ -110,25 +106,56 @@ export const completeQuizAttempt = async (req, res) => {
     // Process submitted answers
     let correctAnswers = 0;
     let totalScore = 0;
+    
+    console.log(`[VALIDATING ANSWERS] Processing ${answers.length} answers`);
 
     for (const answer of answers) {
-      const question = currentAttempt.questions.find(
-        q => q.questionId.toString() === answer.questionId
+      const questionIndex = currentAttempt.questions.findIndex(
+        q => q.questionId._id.toString() === answer.questionId
       );
 
-      if (question) {
+      if (questionIndex >= 0) {
+        const question = currentAttempt.questions[questionIndex];
+        const questionData = question.questionId;
+        
+        // Store the user's answer
         question.selectedOption = answer.selectedOption;
-        question.submittedCode = answer.submittedCode;
-        question.isCorrect = answer.isCorrect;
-        question.timeTaken = answer.timeTaken;
-
-        if (answer.isCorrect) {
-          correctAnswers++;
+        question.submittedCode = answer.submittedCode || "";
+        question.timeTaken = answer.timeTaken || 0;
+        
+        // Compare with correct answer
+        let isCorrect = false;
+        
+        if (questionData.type === 'MCQ') {
+          // For MCQ questions, check if selected option matches the correct answer
+          console.log(`[VALIDATING MCQ] Question: ${questionData._id}, Selected: ${answer.selectedOption}, Correct: ${questionData.correctAnswer}`);
+          isCorrect = (answer.selectedOption === questionData.correctAnswer);
+        } else if (questionData.type === 'coding') {
+          // For coding questions, you would run test cases
+          // This is a placeholder until you implement code execution
+          isCorrect = false;
         }
+        
+        // Update the isCorrect field
+        question.isCorrect = isCorrect;
+        
+        if (isCorrect) {
+          correctAnswers++;
+          console.log(`[CORRECT ANSWER] Question: ${questionData._id}`);
+        } else {
+          console.log(`[INCORRECT ANSWER] Question: ${questionData._id}, Selected: ${answer.selectedOption}, Correct: ${questionData.correctAnswer}`);
+        }
+        
+        // Update the questions array
+        currentAttempt.questions[questionIndex] = question;
+      } else {
+        console.warn(`[QUESTION NOT FOUND] Question ID: ${answer.questionId}`);
       }
     }
 
     totalScore = (correctAnswers / currentAttempt.totalQuestions) * 100;
+    
+    console.log(`[SCORING] Correct Answers: ${correctAnswers}/${currentAttempt.totalQuestions}, Score: ${totalScore.toFixed(2)}%`);
 
     // Update attempt status
     currentAttempt.correctAnswers = correctAnswers;
@@ -138,6 +165,7 @@ export const completeQuizAttempt = async (req, res) => {
     currentAttempt.endTime = new Date();
 
     await currentAttempt.save();
+    console.log(`[ATTEMPT COMPLETED] Attempt ID: ${currentAttempt._id}`);
 
     res.status(200).json({
       success: true,
@@ -225,7 +253,12 @@ export const getQuizAnalytics = async (req, res) => {
     const userId = req.user._id;
 
     const analytics = await QuizAttempt.aggregate([
-      { $match: { user: new mongoose.Types.ObjectId(userId), status: "completed" } },
+      { 
+        $match: { 
+          user: new mongoose.Types.ObjectId(userId),
+          status: "completed"
+        } 
+      },
       {
         $group: {
           _id: "$topic",
@@ -233,10 +266,35 @@ export const getQuizAnalytics = async (req, res) => {
           averageScore: { $avg: "$totalScore" },
           highestScore: { $max: "$totalScore" },
           totalQuestions: { $sum: "$totalQuestions" },
-          correctAnswers: { $sum: "$correctAnswers" }
+          correctAnswers: { $sum: "$correctAnswers" },
+          totalTimeTaken: { $sum: { $subtract: ["$endTime", "$startTime"] } }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          totalAttempts: 1,
+          averageScore: { $round: ["$averageScore", 2] },
+          highestScore: { $round: ["$highestScore", 2] },
+          totalQuestions: 1,
+          correctAnswers: 1,
+          successRate: {
+            $round: [
+              { $multiply: [{ $divide: ["$correctAnswers", "$totalQuestions"] }, 100] },
+              2
+            ]
+          },
+          averageTimePerQuestion: {
+            $round: [
+              { $divide: [{ $divide: ["$totalTimeTaken", 1000] }, "$totalQuestions"] },
+              2
+            ]
+          }
         }
       }
     ]);
+
+    console.log('[ANALYTICS] User:', userId, 'Data:', analytics);
 
     res.status(200).json({
       success: true,

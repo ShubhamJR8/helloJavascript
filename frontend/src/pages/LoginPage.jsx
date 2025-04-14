@@ -30,7 +30,8 @@ const LoginPage = ({ setIsAuthenticated }) => {
     try {
       const response = await loginUser(formData);
       if (response.success) {
-        localStorage.setItem("token", response.data.token);
+        // Store token in localStorage
+        localStorage.setItem("token", response.token);
         setIsAuthenticated(true);
         
         // Get the redirect URL from localStorage

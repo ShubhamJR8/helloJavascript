@@ -1,22 +1,32 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getQuizAnalytics } from '../apis/quizApi';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Card, CardContent, Typography, Grid, CircularProgress, Alert } from '@mui/material';
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
+        setLoading(true);
         const response = await getQuizAnalytics();
-        if (response.success) {
-          setAnalytics(response.data);
-        } else {
-          throw new Error(response.message || 'Failed to fetch analytics');
+        
+        if (!response.success) {
+          throw new Error(response.message);
         }
-      } catch (error) {
-        setError(error.message);
+
+        setAnalytics(response.data);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+        setAnalytics([]);
       } finally {
         setLoading(false);
       }
@@ -27,79 +37,67 @@ const AnalyticsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-center text-white">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mx-auto"></div>
-          <p className="mt-4">Loading analytics...</p>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
-        <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-bold text-red-400 mb-2">Error</h2>
-          <p className="mb-4">{error}</p>
-        </div>
-      </div>
+      <Alert severity="error" sx={{ mt: 2 }}>
+        {error}
+      </Alert>
+    );
+  }
+
+  if (!analytics || analytics.length === 0) {
+    return (
+      <Alert severity="info" sx={{ mt: 2 }}>
+        No analytics data available yet. Complete some quizzes to see your performance.
+      </Alert>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-teal-400 mb-8">Quiz Analytics</h1>
-        
-        {analytics.length === 0 ? (
-          <div className="bg-gray-800 rounded-xl p-6 text-center">
-            <p className="text-gray-300">No quiz attempts found. Start taking quizzes to see your analytics!</p>
-          </div>
-        ) : (
-          <div className="grid gap-6">
-            {analytics.map((topicAnalytics) => (
-              <div key={topicAnalytics._id} className="bg-gray-800 rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-teal-400 mb-4 capitalize">
-                  {topicAnalytics._id}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-gray-700 rounded-lg p-4">
-                    <p className="text-sm text-gray-400">Total Attempts</p>
-                    <p className="text-2xl font-bold">{topicAnalytics.totalAttempts}</p>
-                  </div>
-                  <div className="bg-gray-700 rounded-lg p-4">
-                    <p className="text-sm text-gray-400">Average Score</p>
-                    <p className="text-2xl font-bold">
-                      {Math.round(topicAnalytics.averageScore)}%
-                    </p>
-                  </div>
-                  <div className="bg-gray-700 rounded-lg p-4">
-                    <p className="text-sm text-gray-400">Highest Score</p>
-                    <p className="text-2xl font-bold">
-                      {Math.round(topicAnalytics.highestScore)}%
-                    </p>
-                  </div>
-                  <div className="bg-gray-700 rounded-lg p-4">
-                    <p className="text-sm text-gray-400">Success Rate</p>
-                    <p className="text-2xl font-bold">
-                      {Math.round((topicAnalytics.correctAnswers / topicAnalytics.totalQuestions) * 100)}%
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-400">
-                    Total Questions: {topicAnalytics.totalQuestions}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Correct Answers: {topicAnalytics.correctAnswers}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+    <div style={{ padding: '20px' }}>
+      <Typography variant="h4" gutterBottom>
+        Quiz Analytics
+      </Typography>
+      
+      <Grid container spacing={3}>
+        {analytics.map((topic) => (
+          <Grid item xs={12} md={6} key={topic._id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  {topic._id}
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[topic]}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="_id" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="averageScore" name="Average Score" fill="#8884d8" />
+                    <Bar dataKey="highestScore" name="Highest Score" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+                <Typography variant="body2" color="text.secondary">
+                  Total Attempts: {topic.totalAttempts}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Success Rate: {topic.successRate}%
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Average Time per Question: {topic.averageTimePerQuestion} seconds
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
     </div>
   );
 };

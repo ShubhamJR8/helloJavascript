@@ -58,9 +58,20 @@ export const startQuizAttempt = async (topic, difficulty) => {
   try {
     const response = await quizApi.post("/start", { topic, difficulty });
     console.log('[Start Quiz Attempt] Success:', response.data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to start quiz attempt');
+    }
+
+    // Ensure the response has the required data structure
+    if (!response.data.attemptId || !response.data.data || !response.data.data.questions) {
+      throw new Error('Invalid response data structure');
+    }
+
     return {
       success: true,
       attemptId: response.data.attemptId,
+      data: response.data.data
     };
   } catch (error) {
     console.error('[Start Quiz Attempt] Error:', {
@@ -70,7 +81,8 @@ export const startQuizAttempt = async (topic, difficulty) => {
     });
     return {
       success: false,
-      message: error.response?.data?.message || 'Failed to start quiz attempt',
+      message: error.response?.data?.message || error.message || 'Failed to start quiz attempt',
+      error: error.message
     };
   }
 };
@@ -81,9 +93,14 @@ export const completeQuizAttempt = async (attemptId, answers) => {
   try {
     const response = await quizApi.post("/complete", { attemptId, answers });
     console.log('[Complete Quiz Attempt] Success:', response.data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to complete quiz attempt');
+    }
+
     return {
       success: true,
-      data: response.data,
+      data: response.data.data
     };
   } catch (error) {
     console.error('[Complete Quiz Attempt] Error:', {
@@ -141,9 +158,15 @@ export const fetchQuestionsByTopic = async (topic) => {
 export const getQuizAnalytics = async () => {
   try {
     const response = await quizApi.get("/analytics");
+    console.log('[Get Quiz Analytics] Response:', response.data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to fetch quiz analytics');
+    }
+
     return {
       success: true,
-      data: response.data,
+      data: response.data.data || []
     };
   } catch (error) {
     console.error('[Get Quiz Analytics] Error:', {
@@ -154,6 +177,7 @@ export const getQuizAnalytics = async () => {
     return {
       success: false,
       message: error.response?.data?.message || 'Failed to fetch quiz analytics',
+      data: []
     };
   }
 };
