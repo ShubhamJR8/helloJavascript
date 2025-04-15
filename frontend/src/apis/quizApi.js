@@ -54,18 +54,26 @@ quizApi.interceptors.response.use(
 
 // Start a new quiz attempt
 export const startQuizAttempt = async (topic, difficulty) => {
-  console.log('[Start Quiz Attempt] Request:', { topic, difficulty });
   try {
+    console.log("[Start Quiz Attempt] Request:", { topic, difficulty });
     const response = await quizApi.post("/start", { topic, difficulty });
-    console.log('[Start Quiz Attempt] Success:', response.data);
-    
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Failed to start quiz attempt');
+    console.log("[Start Quiz Attempt] Response:", response.data);
+
+    // Check if all questions are mastered
+    if (response.data.data?.mastered) {
+      return {
+        success: true,
+        data: {
+          mastered: true,
+          topic: response.data.data.topic,
+          difficulty: response.data.data.difficulty
+        }
+      };
     }
 
-    // Ensure the response has the required data structure
-    if (!response.data.attemptId || !response.data.data || !response.data.data.questions) {
-      throw new Error('Invalid response data structure');
+    // Validate response structure for normal quiz attempt
+    if (!response.data.success || !response.data.attemptId || !response.data.data) {
+      throw new Error("Invalid response data structure");
     }
 
     return {
@@ -74,14 +82,10 @@ export const startQuizAttempt = async (topic, difficulty) => {
       data: response.data.data
     };
   } catch (error) {
-    console.error('[Start Quiz Attempt] Error:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
+    console.error("[Start Quiz Attempt] Error:", error);
     return {
       success: false,
-      message: error.response?.data?.message || error.message || 'Failed to start quiz attempt',
+      message: error.response?.data?.message || error.message || "Failed to start quiz attempt",
       error: error.message
     };
   }

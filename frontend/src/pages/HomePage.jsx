@@ -9,49 +9,46 @@ const HomePage = () => {
   const [selectedTopic, setSelectedTopic] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [showWarning, setShowWarning] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const topics = ["javascript", "typescript", "react", "node"];
 
-  const handleStartQuiz = async () => {
-    if (!difficulty) {
-      console.warn('[Start Quiz] No difficulty selected');
-      setShowWarning(true);
-      return;
-    }
-
-    if (!selectedTopic) {
-      console.warn('[Start Quiz] No topic selected');
-      return;
-    }
-
-    console.log('[Start Quiz] Starting quiz with:', {
-      topic: selectedTopic,
-      difficulty: difficulty,
-      timestamp: new Date().toISOString()
-    });
-
+  const handleStartQuiz = async (selectedTopic, selectedDifficulty) => {
     try {
-      console.log('[Start Quiz] Calling API...');
-      const data = await startQuizAttempt(selectedTopic, difficulty);
-      
-      console.log('[Start Quiz] API Response:', data);
-      
-      if (data.success) {
-        console.log('[Start Quiz] Success, navigating to quiz page:', data.attemptId);
-        navigate(`/quiz/${selectedTopic}/${difficulty}`, {
-          state: { attemptId: data.attemptId }
-        });
-      } else {
-        console.error('[Start Quiz] API returned failure:', data);
-        alert(data.message || "Failed to start quiz. Please try again.");
+      setLoading(true);
+      setError(null);
+
+      console.log("[Start Quiz] Starting quiz with:", { selectedTopic, selectedDifficulty });
+      const response = await startQuizAttempt(selectedTopic, selectedDifficulty);
+      console.log("[Start Quiz] API Response:", response);
+
+      if (!response.success) {
+        console.log("[Start Quiz] API returned failure:", response);
+        setError(response.message || "Failed to start quiz");
+        return;
       }
-    } catch (error) {
-      console.error('[Start Quiz] Error:', {
-        message: error.message,
-        response: error.response?.data,
-        stack: error.stack
+
+      // Check if all questions are mastered
+      if (response.data?.mastered) {
+        navigate(`/quiz/${selectedTopic}/${selectedDifficulty}`, {
+          state: { mastered: true }
+        });
+        return;
+      }
+
+      // Normal quiz attempt
+      navigate(`/quiz/${selectedTopic}/${selectedDifficulty}`, {
+        state: {
+          attemptId: response.attemptId,
+          data: response.data
+        }
       });
-      alert("An error occurred while starting the quiz. Please try again.");
+    } catch (error) {
+      console.error("[Start Quiz] Error:", error);
+      setError(error.message || "Failed to start quiz");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -128,7 +125,7 @@ const HomePage = () => {
       <div className="mt-8 flex flex-col gap-4">
         {selectedTopic && (
           <motion.button
-            onClick={handleStartQuiz}
+            onClick={() => handleStartQuiz(selectedTopic, difficulty)}
             className="px-8 py-3 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-all shadow-xl"
             whileHover={{ scale: 1.05 }}
           >
