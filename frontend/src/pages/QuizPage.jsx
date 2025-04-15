@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { completeQuizAttempt, getQuizAttemptDetails, startQuizAttempt } from "../apis/quizApi";
 import { motion } from "framer-motion";
+import { Alert, CircularProgress, Typography } from "@mui/material";
 
 // Constants for validation
 const VALID_DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -20,6 +21,7 @@ const QuizPage = () => {
   const [attemptId, setAttemptId] = useState(null);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isShuffled, setIsShuffled] = useState(false);
   const timerRef = useRef(null);
   const autoSaveTimerRef = useRef(null);
 
@@ -99,12 +101,14 @@ const QuizPage = () => {
 
           attemptId = startResponse.attemptId;
           attemptData = startResponse.data;
+          setIsShuffled(true); // Indicate that questions are shuffled for new attempts
 
           // Clear any old progress
           localStorage.removeItem(`quiz_progress_${attemptId}`);
         } else {
           // Try to load saved progress
           loadSavedProgress(attemptId);
+          setIsShuffled(false); // Questions are not shuffled for resumed attempts
         }
 
         // Validate attempt data
@@ -326,6 +330,16 @@ const QuizPage = () => {
       >
         Quiz
       </motion.h1>
+
+      {isShuffled && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-teal-500/10 border border-teal-500 rounded-lg p-4 mb-6 text-center"
+        >
+          <p className="text-teal-400">Questions are randomly selected and shuffled for this attempt.</p>
+        </motion.div>
+      )}
 
       <div className="w-full max-w-4xl">
         <div className="flex justify-between items-center mb-6">

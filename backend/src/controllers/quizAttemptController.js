@@ -26,13 +26,13 @@ export const startQuizAttempt = async (req, res) => {
       });
     }
 
-    // Fetch questions for the new attempt
-    const questions = await Question.find({ 
+    // Fetch all questions for the topic and difficulty
+    const allQuestions = await Question.find({ 
       topic, 
       difficulty
-    }).limit(10);
+    });
 
-    if (!questions.length) {
+    if (!allQuestions.length) {
       console.warn(`[NO QUESTIONS AVAILABLE] Topic: ${topic}, Difficulty: ${difficulty}`);
       return res.status(404).json({ 
         success: false, 
@@ -40,15 +40,25 @@ export const startQuizAttempt = async (req, res) => {
       });
     }
 
+    // Shuffle questions using Fisher-Yates algorithm
+    const shuffledQuestions = [...allQuestions];
+    for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
+    }
+
+    // Select first 10 questions (or less if not enough available)
+    const selectedQuestions = shuffledQuestions.slice(0, Math.min(10, shuffledQuestions.length));
+
     // Create new attempt
     const newAttempt = new QuizAttempt({
       user: userId,
       topic,
       difficulty,
-      questions: questions.map(q => ({ 
+      questions: selectedQuestions.map(q => ({ 
         questionId: q._id
       })),
-      totalQuestions: questions.length,
+      totalQuestions: selectedQuestions.length,
       status: "in-progress"
     });
 
