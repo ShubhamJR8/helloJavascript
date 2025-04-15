@@ -26,6 +26,24 @@ export const startQuizAttempt = async (req, res) => {
       });
     }
 
+    // Get all completed attempts for this user, topic, and difficulty
+    const completedAttempts = await QuizAttempt.find({
+      user: userId,
+      topic,
+      difficulty,
+      status: "completed"
+    }).populate('questions.questionId');
+
+    // Create a set of question IDs that were answered correctly
+    const correctlyAnsweredQuestionIds = new Set();
+    completedAttempts.forEach(attempt => {
+      attempt.questions.forEach(q => {
+        if (q.isCorrect) {
+          correctlyAnsweredQuestionIds.add(q.questionId._id.toString());
+        }
+      });
+    });
+
     // Fetch all questions for the topic and difficulty
     const allQuestions = await Question.find({ 
       topic, 
@@ -40,8 +58,27 @@ export const startQuizAttempt = async (req, res) => {
       });
     }
 
+    // Filter out questions that were already answered correctly
+    const availableQuestions = allQuestions.filter(q => 
+      !correctlyAnsweredQuestionIds.has(q._id.toString())
+    );
+
+    if (availableQuestions.length === 0) {
+      return res.status(200).json({ 
+        success: true,
+        attemptId: null,
+        data: {
+          questions: [],
+          totalQuestions: 0,
+          mastered: true,
+          topic,
+          difficulty
+        }
+      });
+    }
+
     // Shuffle questions using Fisher-Yates algorithm
-    const shuffledQuestions = [...allQuestions];
+    const shuffledQuestions = [...availableQuestions];
     for (let i = shuffledQuestions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
@@ -89,93 +126,91 @@ export const completeQuizAttempt = async (req, res) => {
   try {
     const { attemptId, answers } = req.body;
     const userId = req.user._id;
-    
-    console.log(`[COMPLETE QUIZ ATTEMPT] User: ${userId}, Attempt: ${attemptId}, Answers count: ${answers.length}`);
 
-    // Find the current quiz attempt with populated question data
     const currentAttempt = await QuizAttempt.findById(attemptId)
       .populate('questions.questionId');
-      
+
     if (!currentAttempt) {
-      console.warn(`[ATTEMPT NOT FOUND] Attempt ID: ${attemptId}`);
-      return res.status(404).json({ 
-        success: false, 
-        message: "Quiz attempt not found" 
-      });
+      return res.status(404).json({ success: false, message: "Quiz attempt not found" });
     }
 
-    // Verify user ownership
     if (currentAttempt.user.toString() !== userId.toString()) {
-      console.warn(`[UNAUTHORIZED] User ${userId} trying to complete attempt ${attemptId} owned by ${currentAttempt.user}`);
-      return res.status(403).json({ 
-        success: false, 
-        message: "Not authorized to complete this attempt" 
-      });
+      return res.status(403).json({ success: false, message: "Not authorized to complete this attempt" });
     }
 
-    // Process submitted answers
     let correctAnswers = 0;
-    let totalScore = 0;
-    
-    console.log(`[VALIDATING ANSWERS] Processing ${answers.length} answers`);
 
     for (const answer of answers) {
-      const questionIndex = currentAttempt.questions.findIndex(
+      const index = currentAttempt.questions.findIndex(
         q => q.questionId._id.toString() === answer.questionId
       );
+      if (index >= 0) {
+        const q = currentAttempt.questions[index];
+        const qData = q.questionId;
 
-      if (questionIndex >= 0) {
-        const question = currentAttempt.questions[questionIndex];
-        const questionData = question.questionId;
-        
-        // Store the user's answer
-        question.selectedOption = answer.selectedOption;
-        question.submittedCode = answer.submittedCode || "";
-        question.timeTaken = answer.timeTaken || 0;
-        
-        // Compare with correct answer
-        let isCorrect = false;
-        
-        if (questionData.type === 'MCQ') {
-          // For MCQ questions, check if selected option matches the correct answer
-          console.log(`[VALIDATING MCQ] Question: ${questionData._id}, Selected: ${answer.selectedOption}, Correct: ${questionData.correctAnswer}`);
-          isCorrect = (answer.selectedOption === questionData.correctAnswer);
-        } else if (questionData.type === 'coding') {
-          // For coding questions, you would run test cases
-          // This is a placeholder until you implement code execution
-          isCorrect = false;
-        }
-        
-        // Update the isCorrect field
-        question.isCorrect = isCorrect;
-        
-        if (isCorrect) {
-          correctAnswers++;
-          console.log(`[CORRECT ANSWER] Question: ${questionData._id}`);
+        q.selectedOption = answer.selectedOption;
+        q.submittedCode = answer.submittedCode || "";
+        q.timeTaken = answer.timeTaken || 0;
+
+        if (qData.type === 'MCQ') {
+          q.isCorrect = (answer.selectedOption === qData.correctAnswer);
         } else {
-          console.log(`[INCORRECT ANSWER] Question: ${questionData._id}, Selected: ${answer.selectedOption}, Correct: ${questionData.correctAnswer}`);
+          q.isCorrect = false; // handle coding separately
         }
-        
-        // Update the questions array
-        currentAttempt.questions[questionIndex] = question;
-      } else {
-        console.warn(`[QUESTION NOT FOUND] Question ID: ${answer.questionId}`);
+
+        if (q.isCorrect) correctAnswers++;
+        currentAttempt.questions[index] = q;
       }
     }
 
-    totalScore = (correctAnswers / currentAttempt.totalQuestions) * 100;
-    
-    console.log(`[SCORING] Correct Answers: ${correctAnswers}/${currentAttempt.totalQuestions}, Score: ${totalScore.toFixed(2)}%`);
+    const totalScore = (correctAnswers / currentAttempt.totalQuestions) * 100;
 
-    // Update attempt status
     currentAttempt.correctAnswers = correctAnswers;
     currentAttempt.totalScore = totalScore;
     currentAttempt.status = "completed";
     currentAttempt.isSubmitted = true;
     currentAttempt.endTime = new Date();
 
+    // Get existing attempts to merge
+    const existingCompletedAttempts = await QuizAttempt.find({
+      user: userId,
+      topic: currentAttempt.topic,
+      difficulty: currentAttempt.difficulty,
+      status: "completed",
+      _id: { $ne: currentAttempt._id }
+    });
+
+    let wasMerged = false;
+
+    for (const existingAttempt of existingCompletedAttempts) {
+      const existingIds = new Set(
+        existingAttempt.questions.map(q => q.questionId.toString())
+      );
+
+      const newCorrectQs = currentAttempt.questions.filter(q => q.isCorrect && !existingIds.has(q.questionId._id.toString()));
+
+      if (newCorrectQs.length > 0) {
+        for (const newQ of newCorrectQs) {
+          existingAttempt.questions.push({
+            questionId: newQ.questionId._id,
+            isCorrect: true,
+            selectedOption: newQ.selectedOption,
+            submittedCode: newQ.submittedCode,
+            timeTaken: newQ.timeTaken
+          });
+        }
+
+        // ✅ Update correctAnswers and totalScore
+        existingAttempt.correctAnswers = existingAttempt.questions.filter(q => q.isCorrect).length;
+        existingAttempt.totalQuestions = existingAttempt.questions.length;
+        existingAttempt.totalScore = (existingAttempt.correctAnswers / existingAttempt.totalQuestions) * 100;
+
+        await existingAttempt.save();
+        wasMerged = true;
+      }
+    }
+
     await currentAttempt.save();
-    console.log(`[ATTEMPT COMPLETED] Attempt ID: ${currentAttempt._id}`);
 
     res.status(200).json({
       success: true,
@@ -187,13 +222,22 @@ export const completeQuizAttempt = async (req, res) => {
         totalQuestions: currentAttempt.totalQuestions
       }
     });
+
+    // After response, delete attempt only if merged
+    if (wasMerged) {
+      setImmediate(async () => {
+        try {
+          await QuizAttempt.findByIdAndDelete(currentAttempt._id);
+          console.log(`[DELETED MERGED ATTEMPT] ${currentAttempt._id}`);
+        } catch (err) {
+          console.error(`[DELETE ERROR] ${currentAttempt._id}`, err);
+        }
+      });
+    }
+
   } catch (error) {
     console.error(`[ERROR] Complete Quiz Attempt:`, error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error completing quiz attempt", 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: "Error completing quiz attempt", error: error.message });
   }
 };
 

@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { completeQuizAttempt, getQuizAttemptDetails, startQuizAttempt } from "../apis/quizApi";
 import { motion } from "framer-motion";
 import { Alert, CircularProgress, Typography } from "@mui/material";
+import MasteredQuizMessage from "../components/MasteredQuizMessage";
 
 // Constants for validation
 const VALID_DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -22,6 +23,7 @@ const QuizPage = () => {
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isShuffled, setIsShuffled] = useState(false);
+  const [mastered, setMastered] = useState(false);
   const timerRef = useRef(null);
   const autoSaveTimerRef = useRef(null);
 
@@ -98,6 +100,13 @@ const QuizPage = () => {
             }
             return response;
           });
+
+          // Check if user has mastered all questions
+          if (startResponse.data.mastered) {
+            setMastered(true);
+            setQuestions([]);
+            return;
+          }
 
           attemptId = startResponse.attemptId;
           attemptData = startResponse.data;
@@ -284,6 +293,10 @@ const QuizPage = () => {
         </div>
       </div>
     );
+  }
+
+  if (mastered) {
+    return <MasteredQuizMessage topic={topic} difficulty={difficulty} />;
   }
 
   if (error) {
