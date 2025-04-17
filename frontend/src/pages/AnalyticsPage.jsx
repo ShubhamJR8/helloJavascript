@@ -60,7 +60,7 @@ const AnalyticsPage = () => {
   }
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: '20px', paddingTop: '100px'}}>
       <Typography variant="h4" gutterBottom>
         Quiz Analytics
       </Typography>

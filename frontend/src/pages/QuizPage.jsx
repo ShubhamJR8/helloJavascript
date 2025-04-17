@@ -4,6 +4,9 @@ import { completeQuizAttempt, getQuizAttemptDetails, startQuizAttempt } from "..
 import { motion } from "framer-motion";
 import { Alert, CircularProgress, Typography } from "@mui/material";
 import MasteredQuizMessage from "../components/MasteredQuizMessage";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import '../styles/QuizPage.css';
 
 // Constants for validation
 const VALID_DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -244,7 +247,7 @@ const QuizPage = () => {
             questionId: q.id,
             selectedOption: answer,
             submittedCode: q.type === 'coding' ? answer : "",
-            timeTaken: q.timeLimit - timeLeft || 0
+            timeTaken: Math.max(0, q.timeLimit - timeLeft)
           };
         });
 
@@ -282,6 +285,48 @@ const QuizPage = () => {
         setLoading(false);
       }
     }
+  };
+
+  const renderQuestion = (question) => {
+    // Split the question text to separate code blocks
+    const parts = question.question.split(/```(\w+)?\n([\s\S]*?)```/);
+    
+    return (
+      <div className="space-y-4">
+        {parts.map((part, index) => {
+          // If the part is a code block (odd index)
+          if (index % 3 === 2) {
+            const language = parts[index - 1] || 'javascript';
+            return (
+              <div key={index} className="relative">
+                <div className="absolute top-0 right-0 px-2 py-1 text-xs text-gray-400 bg-gray-800 rounded-bl">
+                  {language}
+                </div>
+                <SyntaxHighlighter
+                  language={language}
+                  style={vscDarkPlus}
+                  className="rounded-lg !mt-0 !mb-0"
+                  customStyle={{
+                    padding: '1rem',
+                    margin: '0',
+                    fontSize: '0.9rem',
+                    borderRadius: '0.5rem',
+                  }}
+                >
+                  {part.trim()}
+                </SyntaxHighlighter>
+              </div>
+            );
+          }
+          // If the part is not a code block (even index)
+          return (
+            <p key={index} className="text-gray-200 leading-relaxed">
+              {part}
+            </p>
+          );
+        })}
+      </div>
+    );
   };
 
   if (loading) {
@@ -335,69 +380,61 @@ const QuizPage = () => {
   const currentQ = questions[currentIndex];
 
   return (
-    <div className="w-full min-h-screen flex flex-col justify-center items-center bg-gray-900 text-white p-6">
-      <motion.h1
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-4xl font-bold text-teal-400 mb-8"
-      >
-        Quiz
-      </motion.h1>
-
-      {isShuffled && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-teal-500/10 border border-teal-500 rounded-lg p-4 mb-6 text-center"
-        >
-          <p className="text-teal-400">Questions are randomly selected and shuffled for this attempt.</p>
-        </motion.div>
-      )}
-
-      <div className="w-full max-w-4xl">
+    <div className="min-h-screen bg-gray-900 text-white p-6 pt-20">
+      <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <span className="text-gray-400">
+          <h2 className="text-xl font-semibold">
             Question {currentIndex + 1} of {questions.length}
-          </span>
-          <span className="text-red-400 font-bold">
+          </h2>
+          <div className="text-red-400 font-semibold">
             Time Left: {timeLeft}s
-          </span>
+          </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="p-6 bg-gray-800 rounded-xl shadow-lg"
-        >
-          <h2 className="text-2xl font-semibold mb-6">{currentQ.question}</h2>
+        <div className="bg-gray-800 rounded-xl p-6 shadow-lg">
+          {renderQuestion(currentQ)}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-8 space-y-4">
             {currentQ.options.map((option, index) => (
-              <motion.button
+              <button
                 key={index}
-                onClick={() => handleAnswerSelect(currentQ.id, option)}
-                className={`p-4 rounded-lg font-semibold transition-all duration-300 text-lg text-center shadow-md ${
+                className={`w-full p-4 text-left rounded-lg transition-colors duration-200 ${
                   selectedAnswers[currentQ.id] === option
-                    ? "bg-teal-500"
-                    : "bg-gray-700 hover:bg-teal-600"
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                 }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                onClick={() => handleAnswerSelect(currentQ.id, option)}
               >
                 {option}
-              </motion.button>
+              </button>
             ))}
           </div>
-        </motion.div>
+        </div>
 
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={handleNext}
-            className="px-8 py-3 bg-teal-500 text-white text-lg font-semibold rounded-lg hover:bg-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!selectedAnswers[currentQ.id] && timeLeft > 0}
-          >
-            {currentIndex < questions.length - 1 ? "Next Question" : "Submit Quiz"}
-          </button>
+        <div className="mt-8 flex justify-between">
+          {currentIndex > 0 && (
+            <button
+              onClick={() => setCurrentIndex(currentIndex - 1)}
+              className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              Previous
+            </button>
+          )}
+          {currentIndex < questions.length - 1 ? (
+            <button
+              onClick={handleNext}
+              className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              onClick={handleNext}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Submit
+            </button>
+          )}
         </div>
       </div>
     </div>
