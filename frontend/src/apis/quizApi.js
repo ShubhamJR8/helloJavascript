@@ -76,10 +76,20 @@ export const startQuizAttempt = async (topic, difficulty) => {
       throw new Error("Invalid response data structure");
     }
 
+    // Ensure questions are properly populated
+    if (!response.data.data.questions || !Array.isArray(response.data.data.questions)) {
+      throw new Error("Invalid questions data in response");
+    }
+
     return {
       success: true,
       attemptId: response.data.attemptId,
-      data: response.data.data
+      data: {
+        questions: response.data.data.questions,
+        totalQuestions: response.data.data.totalQuestions,
+        topic: response.data.data.topic,
+        difficulty: response.data.data.difficulty
+      }
     };
   } catch (error) {
     console.error("[Start Quiz Attempt] Error:", error);
@@ -95,7 +105,14 @@ export const startQuizAttempt = async (topic, difficulty) => {
 export const completeQuizAttempt = async (attemptId, answers) => {
   console.log('[Complete Quiz Attempt] Request:', { attemptId, answers });
   try {
-    const response = await quizApi.post("/complete", { attemptId, answers });
+    const response = await quizApi.post("/complete", {
+      attemptId,
+      answers: answers.map(answer => ({
+        questionId: answer.questionId,
+        selectedOption: answer.selectedOption || null,
+        timeTaken: answer.timeTaken || 0
+      }))
+    });
     console.log('[Complete Quiz Attempt] Success:', response.data);
     
     if (!response.data.success) {
@@ -110,11 +127,13 @@ export const completeQuizAttempt = async (attemptId, answers) => {
     console.error('[Complete Quiz Attempt] Error:', {
       message: error.message,
       response: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
+      data: error.config?.data
     });
     return {
       success: false,
       message: error.response?.data?.message || 'Failed to complete quiz attempt',
+      errors: error.response?.data?.errors || []
     };
   }
 };

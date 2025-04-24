@@ -4,6 +4,9 @@ import { completeQuizAttempt, getQuizAttemptDetails, startQuizAttempt } from "..
 import { motion } from "framer-motion";
 import { Alert, CircularProgress, Typography } from "@mui/material";
 import MasteredQuizMessage from "../components/MasteredQuizMessage";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import '../styles/QuizPage.css';
 
 // Constants for validation
 const VALID_DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -15,9 +18,9 @@ const QuizPage = () => {
   const location = useLocation();
   const { topic, difficulty } = useParams();
   const [questions, setQuestions] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [questionTimes, setQuestionTimes] = useState({}); // Track time for each question
   const [loading, setLoading] = useState(true);
   const [attemptId, setAttemptId] = useState(null);
   const [error, setError] = useState(null);
@@ -42,9 +45,9 @@ const QuizPage = () => {
     if (attemptId && questions.length > 0) {
       const progress = {
         attemptId,
-        currentIndex,
-        selectedAnswers,
-        timeLeft,
+        currentIndex: currentQuestion,
+        selectedAnswers: answers,
+        timeLeft: questionTimes[currentQuestion],
         lastSaved: new Date().toISOString()
       };
       localStorage.setItem(`quiz_progress_${attemptId}`, JSON.stringify(progress));
@@ -56,9 +59,9 @@ const QuizPage = () => {
     const savedProgress = localStorage.getItem(`quiz_progress_${savedAttemptId}`);
     if (savedProgress) {
       const progress = JSON.parse(savedProgress);
-      setCurrentIndex(progress.currentIndex);
-      setSelectedAnswers(progress.selectedAnswers);
-      setTimeLeft(progress.timeLeft);
+      setCurrentQuestion(progress.currentIndex);
+      setAnswers(progress.selectedAnswers);
+      setQuestionTimes(progress.timeLeft);
       return true;
     }
     return false;
@@ -154,6 +157,13 @@ const QuizPage = () => {
         setAttemptId(attemptId);
         setQuestions(populatedQuestions);
 
+        // Initialize times for all questions
+        const initialTimes = populatedQuestions.reduce((acc, q, index) => {
+          acc[index] = q.timeLimit || 30;
+          return acc;
+        }, {});
+        setQuestionTimes(initialTimes);
+
         // Set up auto-save
         autoSaveTimerRef.current = setInterval(autoSaveProgress, 30000); // Auto-save every 30 seconds
 
@@ -182,106 +192,136 @@ const QuizPage = () => {
   }, [location.state, topic, difficulty, retryCount]);
 
   useEffect(() => {
-    if (questions.length > 0) {
-      const currentQ = questions[currentIndex];
-      setTimeLeft(currentQ?.timeLimit || 30);
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(handleNext, (currentQ?.timeLimit || 30) * 1000);
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
 
-    return () => clearTimeout(timerRef.current);
-  }, [currentIndex, questions]);
-
-  useEffect(() => {
-    if (timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
-      return () => clearTimeout(timer);
+    // Start timer for current question if time is remaining
+    if (questionTimes[currentQuestion] > 0) {
+      timerRef.current = setInterval(() => {
+        setQuestionTimes(prev => {
+          const newTimes = { ...prev };
+          if (newTimes[currentQuestion] > 0) {
+            newTimes[currentQuestion] -= 1;
+          }
+          return newTimes;
+        });
+      }, 1000);
     }
-  }, [timeLeft]);
 
-  const handleAnswerSelect = (questionId, answer) => {
-    setSelectedAnswers((prev) => {
-      const newAnswers = { ...prev, [questionId]: answer };
-      // Auto-save on answer change
-      if (attemptId) {
-        const progress = {
-          attemptId,
-          currentIndex,
-          selectedAnswers: newAnswers,
-          timeLeft,
-          lastSaved: new Date().toISOString()
-        };
-        localStorage.setItem(`quiz_progress_${attemptId}`, JSON.stringify(progress));
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
-      return newAnswers;
-    });
-    clearTimeout(timerRef.current);
+    };
+  }, [currentQuestion, questionTimes]);
+
+  const handleAnswer = (selectedOption) => {
+    const newAnswers = [...answers];
+    const currentQ = questions[currentQuestion];
+    const timeLimit = currentQ.timeLimit || 30;
+    const timeTaken = Math.max(0, timeLimit - questionTimes[currentQuestion]);
+    
+    newAnswers[currentQuestion] = {
+      questionId: currentQ.id,
+      selectedOption,
+      timeTaken,
+    };
+    setAnswers(newAnswers);
   };
 
-  const handleNext = async () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      try {
-        setLoading(true);
-        setError(null);
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    }
+  };
 
-        // Validate all questions are answered
-        const unansweredQuestions = questions.filter(
-          q => !selectedAnswers[q.id] && q.type === 'mcq'
-        );
-        if (unansweredQuestions.length > 0) {
-          throw new Error(`Please answer all questions before submitting. Unanswered questions: ${unansweredQuestions.length}`);
-        }
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    }
+  };
 
-        // Transform selectedAnswers into array format with validation
-        const transformedAnswers = questions.map(q => {
-          const answer = selectedAnswers[q.id];
-          if (!answer && q.type === 'mcq') {
-            throw new Error(`Missing answer for question: ${q.question}`);
-          }
-          return {
-            questionId: q.id,
-            selectedOption: answer,
-            submittedCode: q.type === 'coding' ? answer : "",
-            timeTaken: q.timeLimit - timeLeft || 0
-          };
-        });
+  const handleSubmit = async () => {
+    try {
+      // Log the questions structure for debugging
+      console.log('Questions structure:', questions);
 
-        // Submit with retry mechanism
-        const response = await retryOperation(async () => {
-          const result = await completeQuizAttempt(attemptId, transformedAnswers);
-          if (!result.success) {
-            throw new Error(result.message || "Failed to submit quiz");
-          }
-          return result;
-        });
-
-        // Clear saved progress
-        localStorage.removeItem(`quiz_progress_${attemptId}`);
+      // Prepare answers with proper validation
+      const validatedAnswers = questions.map((question, index) => {
+        const answer = answers[index];
+        const timeLimit = question.timeLimit || 30;
         
-        // Navigate to result page with the response data
-        navigate(`/result/${response.data.attemptId}`, {
+        return {
+          questionId: question.id || question._id,
+          selectedOption: answer?.selectedOption || null, // Allow null for unanswered questions
+          timeTaken: Math.max(0, timeLimit - questionTimes[index])
+        };
+      });
+
+      const response = await completeQuizAttempt(attemptId, validatedAnswers);
+      
+      if (response.success) {
+        navigate(`/result/${attemptId}`, {
           state: {
             totalScore: response.data.totalScore,
             correctAnswers: response.data.correctAnswers,
-            totalQuestions: response.data.totalQuestions,
-            attemptId: response.data.attemptId,
+            attemptId: attemptId,
             topic: topic,
-            difficulty: difficulty,
-            questions: questions.map(q => ({
-              ...q,
-              userAnswer: selectedAnswers[q.id]
-            }))
+            difficulty: difficulty
           },
         });
-      } catch (error) {
-        console.error("Error submitting quiz:", error);
-        setError(error.message || "Failed to submit quiz");
-      } finally {
-        setLoading(false);
+      } else {
+        console.error('Quiz submission failed:', response.errors);
+        setError(response.message || 'Failed to complete quiz attempt');
       }
+    } catch (err) {
+      console.error('Error submitting quiz:', err);
+      setError(err.message || 'Failed to complete quiz attempt');
     }
+  };
+
+  const renderQuestion = (question) => {
+    // Split the question text to separate code blocks
+    const parts = question.question.split(/```(\w+)?\n([\s\S]*?)```/);
+    
+    return (
+      <div className="space-y-4">
+        {parts.map((part, index) => {
+          // If the part is a code block (odd index)
+          if (index % 3 === 2) {
+            const language = parts[index - 1] || 'javascript';
+            return (
+              <div key={index} className="relative">
+                <div className="absolute top-0 right-0 px-2 py-1 text-xs text-gray-400 bg-gray-800 rounded-bl">
+                  {language}
+                </div>
+                <SyntaxHighlighter
+                  language={language}
+                  style={vscDarkPlus}
+                  className="rounded-lg !mt-0 !mb-0"
+                  customStyle={{
+                    padding: '1rem',
+                    margin: '0',
+                    fontSize: '0.9rem',
+                    borderRadius: '0.5rem',
+                  }}
+                >
+                  {part.trim()}
+                </SyntaxHighlighter>
+              </div>
+            );
+          }
+          // If the part is not a code block (even index)
+          return (
+            <p key={index} className="text-gray-200 leading-relaxed">
+              {part}
+            </p>
+          );
+        })}
+      </div>
+    );
   };
 
   if (loading) {
@@ -332,72 +372,94 @@ const QuizPage = () => {
     );
   }
 
-  const currentQ = questions[currentIndex];
-
   return (
-    <div className="w-full min-h-screen flex flex-col justify-center items-center bg-gray-900 text-white p-6">
-      <motion.h1
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-4xl font-bold text-teal-400 mb-8"
-      >
-        Quiz
-      </motion.h1>
-
-      {isShuffled && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-teal-500/10 border border-teal-500 rounded-lg p-4 mb-6 text-center"
-        >
-          <p className="text-teal-400">Questions are randomly selected and shuffled for this attempt.</p>
-        </motion.div>
-      )}
-
-      <div className="w-full max-w-4xl">
+    <div className="min-h-screen bg-gray-900 text-white p-6 pt-20">
+      <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <span className="text-gray-400">
-            Question {currentIndex + 1} of {questions.length}
-          </span>
-          <span className="text-red-400 font-bold">
-            Time Left: {timeLeft}s
-          </span>
+          <h2 className="text-xl font-semibold">
+            Question {currentQuestion + 1} of {questions.length}
+          </h2>
+          <div className={`font-semibold ${questionTimes[currentQuestion] <= 0 ? 'text-red-400' : 'text-green-400'}`}>
+            {questionTimes[currentQuestion] <= 0 ? 'Time Up!' : `Time Left: ${questionTimes[currentQuestion]}s`}
+          </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="p-6 bg-gray-800 rounded-xl shadow-lg"
-        >
-          <h2 className="text-2xl font-semibold mb-6">{currentQ.question}</h2>
+        <div className="bg-gray-800 rounded-xl p-6 shadow-lg">
+          {renderQuestion(questions[currentQuestion])}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {currentQ.options.map((option, index) => (
-              <motion.button
-                key={index}
-                onClick={() => handleAnswerSelect(currentQ.id, option)}
-                className={`p-4 rounded-lg font-semibold transition-all duration-300 text-lg text-center shadow-md ${
-                  selectedAnswers[currentQ.id] === option
-                    ? "bg-teal-500"
-                    : "bg-gray-700 hover:bg-teal-600"
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {option}
-              </motion.button>
-            ))}
+          <div className="mt-8 space-y-4">
+            {questions[currentQuestion].options.map((option, index) => {
+              const isSelected = answers[currentQuestion]?.selectedOption === option;
+              const isTimeUp = questionTimes[currentQuestion] <= 0;
+              
+              return (
+                <button
+                  key={index}
+                  className={`
+                    w-full p-4 text-left rounded-lg transition-all duration-200
+                    ${isTimeUp 
+                      ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed' 
+                      : isSelected
+                        ? 'bg-teal-600 text-white ring-2 ring-teal-400 ring-offset-2 ring-offset-gray-800'
+                        : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                    }
+                    ${!isTimeUp && !isSelected ? 'hover:scale-[1.02]' : ''}
+                  `}
+                  onClick={() => !isTimeUp && handleAnswer(option)}
+                  disabled={isTimeUp}
+                >
+                  <div className="flex items-center">
+                    <div className={`
+                      w-6 h-6 rounded-full border-2 mr-3 flex items-center justify-center
+                      ${isTimeUp 
+                        ? 'border-gray-600' 
+                        : isSelected
+                          ? 'border-teal-400 bg-teal-400'
+                          : 'border-gray-400'
+                      }
+                    `}>
+                      {isSelected && !isTimeUp && (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-lg">{option}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        </motion.div>
+        </div>
 
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={handleNext}
-            className="px-8 py-3 bg-teal-500 text-white text-lg font-semibold rounded-lg hover:bg-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!selectedAnswers[currentQ.id] && timeLeft > 0}
-          >
-            {currentIndex < questions.length - 1 ? "Next Question" : "Submit Quiz"}
-          </button>
+        <div className="mt-8 flex justify-between">
+          <div>
+            {currentQuestion > 0 && (
+              <button
+                onClick={handlePrevious}
+                className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Previous
+              </button>
+            )}
+          </div>
+          <div>
+            {currentQuestion < questions.length - 1 ? (
+              <button
+                onClick={handleNext}
+                className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Submit
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

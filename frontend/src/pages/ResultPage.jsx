@@ -1,6 +1,6 @@
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getQuizAttemptDetails } from "../apis/quizApi";
+import { getQuizAttemptDetails, startQuizAttempt } from "../apis/quizApi";
 
 const ResultPage = () => {
   const location = useLocation();
@@ -56,9 +56,33 @@ const ResultPage = () => {
     fetchData();
   }, [urlAttemptId, location.state]);
 
-  const handleRetryQuiz = () => {
+  const handleRetryQuiz = async () => {
+    console.log("Attempting to retry quiz with topic:", result.topic, "and difficulty:", result.difficulty);
     if (result?.topic && result?.difficulty) {
-      navigate(`/quiz/${result.topic}/${result.difficulty}`);
+      try {
+        const response = await startQuizAttempt(result.topic, result.difficulty);
+        console.log("[Retry Quiz] Response:", response);
+        
+        if (response.success) {
+          if (response.data.mastered) {
+            navigate(`/quiz/${result.topic}/${result.difficulty}`, {
+              state: { mastered: true }
+            });
+          } else {
+            navigate(`/quiz/${result.topic}/${result.difficulty}`, {
+              state: {
+                attemptId: response.attemptId,
+                data: response.data
+              }
+            });
+          }
+        } else {
+          setError(response.message || "Failed to start new quiz attempt");
+        }
+      } catch (error) {
+        console.error("[Retry Quiz] Error:", error);
+        setError(error.message || "Failed to start new quiz attempt");
+      }
     }
   };
 
