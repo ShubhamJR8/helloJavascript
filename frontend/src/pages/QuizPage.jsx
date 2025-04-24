@@ -18,9 +18,9 @@ const QuizPage = () => {
   const location = useLocation();
   const { topic, difficulty } = useParams();
   const [questions, setQuestions] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [questionTimes, setQuestionTimes] = useState({}); // Track time for each question
   const [loading, setLoading] = useState(true);
   const [attemptId, setAttemptId] = useState(null);
   const [error, setError] = useState(null);
@@ -45,9 +45,9 @@ const QuizPage = () => {
     if (attemptId && questions.length > 0) {
       const progress = {
         attemptId,
-        currentIndex,
-        selectedAnswers,
-        timeLeft,
+        currentIndex: currentQuestion,
+        selectedAnswers: answers,
+        timeLeft: questionTimes[currentQuestion],
         lastSaved: new Date().toISOString()
       };
       localStorage.setItem(`quiz_progress_${attemptId}`, JSON.stringify(progress));
@@ -59,9 +59,9 @@ const QuizPage = () => {
     const savedProgress = localStorage.getItem(`quiz_progress_${savedAttemptId}`);
     if (savedProgress) {
       const progress = JSON.parse(savedProgress);
-      setCurrentIndex(progress.currentIndex);
-      setSelectedAnswers(progress.selectedAnswers);
-      setTimeLeft(progress.timeLeft);
+      setCurrentQuestion(progress.currentIndex);
+      setAnswers(progress.selectedAnswers);
+      setQuestionTimes(progress.timeLeft);
       return true;
     }
     return false;
@@ -157,6 +157,13 @@ const QuizPage = () => {
         setAttemptId(attemptId);
         setQuestions(populatedQuestions);
 
+        // Initialize times for all questions
+        const initialTimes = populatedQuestions.reduce((acc, q, index) => {
+          acc[index] = q.timeLimit || 30;
+          return acc;
+        }, {});
+        setQuestionTimes(initialTimes);
+
         // Set up auto-save
         autoSaveTimerRef.current = setInterval(autoSaveProgress, 30000); // Auto-save every 30 seconds
 
@@ -185,105 +192,93 @@ const QuizPage = () => {
   }, [location.state, topic, difficulty, retryCount]);
 
   useEffect(() => {
-    if (questions.length > 0) {
-      const currentQ = questions[currentIndex];
-      setTimeLeft(currentQ?.timeLimit || 30);
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(handleNext, (currentQ?.timeLimit || 30) * 1000);
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
 
-    return () => clearTimeout(timerRef.current);
-  }, [currentIndex, questions]);
-
-  useEffect(() => {
-    if (timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
-      return () => clearTimeout(timer);
+    // Start timer for current question if time is remaining
+    if (questionTimes[currentQuestion] > 0) {
+      timerRef.current = setInterval(() => {
+        setQuestionTimes(prev => {
+          const newTimes = { ...prev };
+          if (newTimes[currentQuestion] > 0) {
+            newTimes[currentQuestion] -= 1;
+          }
+          return newTimes;
+        });
+      }, 1000);
     }
-  }, [timeLeft]);
 
-  const handleAnswerSelect = (questionId, answer) => {
-    setSelectedAnswers((prev) => {
-      const newAnswers = { ...prev, [questionId]: answer };
-      // Auto-save on answer change
-      if (attemptId) {
-        const progress = {
-          attemptId,
-          currentIndex,
-          selectedAnswers: newAnswers,
-          timeLeft,
-          lastSaved: new Date().toISOString()
-        };
-        localStorage.setItem(`quiz_progress_${attemptId}`, JSON.stringify(progress));
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
-      return newAnswers;
-    });
-    clearTimeout(timerRef.current);
+    };
+  }, [currentQuestion, questionTimes]);
+
+  const handleAnswer = (selectedOption) => {
+    const newAnswers = [...answers];
+    const currentQ = questions[currentQuestion];
+    const timeLimit = currentQ.timeLimit || 30;
+    const timeTaken = Math.max(0, timeLimit - questionTimes[currentQuestion]);
+    
+    newAnswers[currentQuestion] = {
+      questionId: currentQ.id,
+      selectedOption,
+      timeTaken,
+    };
+    setAnswers(newAnswers);
   };
 
-  const handleNext = async () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      try {
-        setLoading(true);
-        setError(null);
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    }
+  };
 
-        // Validate all questions are answered
-        const unansweredQuestions = questions.filter(
-          q => !selectedAnswers[q.id] && q.type === 'mcq'
-        );
-        if (unansweredQuestions.length > 0) {
-          throw new Error(`Please answer all questions before submitting. Unanswered questions: ${unansweredQuestions.length}`);
-        }
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    }
+  };
 
-        // Transform selectedAnswers into array format with validation
-        const transformedAnswers = questions.map(q => {
-          const answer = selectedAnswers[q.id];
-          if (!answer && q.type === 'mcq') {
-            throw new Error(`Missing answer for question: ${q.question}`);
-          }
-          return {
-            questionId: q.id,
-            selectedOption: answer,
-            submittedCode: q.type === 'coding' ? answer : "",
-            timeTaken: Math.max(0, q.timeLimit - timeLeft)
-          };
-        });
+  const handleSubmit = async () => {
+    try {
+      // Log the questions structure for debugging
+      console.log('Questions structure:', questions);
 
-        // Submit with retry mechanism
-        const response = await retryOperation(async () => {
-          const result = await completeQuizAttempt(attemptId, transformedAnswers);
-          if (!result.success) {
-            throw new Error(result.message || "Failed to submit quiz");
-          }
-          return result;
-        });
-
-        // Clear saved progress
-        localStorage.removeItem(`quiz_progress_${attemptId}`);
+      // Prepare answers with proper validation
+      const validatedAnswers = questions.map((question, index) => {
+        const answer = answers[index];
+        const timeLimit = question.timeLimit || 30;
         
-        // Navigate to result page with the response data
-        navigate(`/result/${response.data.attemptId}`, {
+        return {
+          questionId: question.id || question._id,
+          selectedOption: answer?.selectedOption || null, // Allow null for unanswered questions
+          timeTaken: Math.max(0, timeLimit - questionTimes[index])
+        };
+      });
+
+      const response = await completeQuizAttempt(attemptId, validatedAnswers);
+      
+      if (response.success) {
+        navigate(`/result/${attemptId}`, {
           state: {
             totalScore: response.data.totalScore,
             correctAnswers: response.data.correctAnswers,
-            totalQuestions: response.data.totalQuestions,
-            attemptId: response.data.attemptId,
+            attemptId: attemptId,
             topic: topic,
-            difficulty: difficulty,
-            questions: questions.map(q => ({
-              ...q,
-              userAnswer: selectedAnswers[q.id]
-            }))
+            difficulty: difficulty
           },
         });
-      } catch (error) {
-        console.error("Error submitting quiz:", error);
-        setError(error.message || "Failed to submit quiz");
-      } finally {
-        setLoading(false);
+      } else {
+        console.error('Quiz submission failed:', response.errors);
+        setError(response.message || 'Failed to complete quiz attempt');
       }
+    } catch (err) {
+      console.error('Error submitting quiz:', err);
+      setError(err.message || 'Failed to complete quiz attempt');
     }
   };
 
@@ -377,64 +372,94 @@ const QuizPage = () => {
     );
   }
 
-  const currentQ = questions[currentIndex];
-
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 pt-20">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">
-            Question {currentIndex + 1} of {questions.length}
+            Question {currentQuestion + 1} of {questions.length}
           </h2>
-          <div className="text-red-400 font-semibold">
-            Time Left: {timeLeft}s
+          <div className={`font-semibold ${questionTimes[currentQuestion] <= 0 ? 'text-red-400' : 'text-green-400'}`}>
+            {questionTimes[currentQuestion] <= 0 ? 'Time Up!' : `Time Left: ${questionTimes[currentQuestion]}s`}
           </div>
         </div>
 
         <div className="bg-gray-800 rounded-xl p-6 shadow-lg">
-          {renderQuestion(currentQ)}
+          {renderQuestion(questions[currentQuestion])}
           
           <div className="mt-8 space-y-4">
-            {currentQ.options.map((option, index) => (
-              <button
-                key={index}
-                className={`w-full p-4 text-left rounded-lg transition-colors duration-200 ${
-                  selectedAnswers[currentQ.id] === option
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-                }`}
-                onClick={() => handleAnswerSelect(currentQ.id, option)}
-              >
-                {option}
-              </button>
-            ))}
+            {questions[currentQuestion].options.map((option, index) => {
+              const isSelected = answers[currentQuestion]?.selectedOption === option;
+              const isTimeUp = questionTimes[currentQuestion] <= 0;
+              
+              return (
+                <button
+                  key={index}
+                  className={`
+                    w-full p-4 text-left rounded-lg transition-all duration-200
+                    ${isTimeUp 
+                      ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed' 
+                      : isSelected
+                        ? 'bg-teal-600 text-white ring-2 ring-teal-400 ring-offset-2 ring-offset-gray-800'
+                        : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                    }
+                    ${!isTimeUp && !isSelected ? 'hover:scale-[1.02]' : ''}
+                  `}
+                  onClick={() => !isTimeUp && handleAnswer(option)}
+                  disabled={isTimeUp}
+                >
+                  <div className="flex items-center">
+                    <div className={`
+                      w-6 h-6 rounded-full border-2 mr-3 flex items-center justify-center
+                      ${isTimeUp 
+                        ? 'border-gray-600' 
+                        : isSelected
+                          ? 'border-teal-400 bg-teal-400'
+                          : 'border-gray-400'
+                      }
+                    `}>
+                      {isSelected && !isTimeUp && (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-lg">{option}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="mt-8 flex justify-between">
-          {currentIndex > 0 && (
-            <button
-              onClick={() => setCurrentIndex(currentIndex - 1)}
-              className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              Previous
-            </button>
-          )}
-          {currentIndex < questions.length - 1 ? (
-            <button
-              onClick={handleNext}
-              className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-            >
-              Next
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Submit
-            </button>
-          )}
+          <div>
+            {currentQuestion > 0 && (
+              <button
+                onClick={handlePrevious}
+                className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Previous
+              </button>
+            )}
+          </div>
+          <div>
+            {currentQuestion < questions.length - 1 ? (
+              <button
+                onClick={handleNext}
+                className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Submit
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

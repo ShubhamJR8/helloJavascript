@@ -37,7 +37,7 @@ const AnalyticsPage = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div className="flex justify-center items-center h-screen">
         <CircularProgress />
       </div>
     );
@@ -45,7 +45,7 @@ const AnalyticsPage = () => {
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mt: 2 }}>
+      <Alert severity="error" className="mt-2">
         {error}
       </Alert>
     );
@@ -53,15 +53,15 @@ const AnalyticsPage = () => {
 
   if (!analytics || analytics.length === 0) {
     return (
-      <Alert severity="info" sx={{ mt: 2 }}>
+      <Alert severity="info" className="mt-15">
         No analytics data available yet. Complete some quizzes to see your performance.
       </Alert>
     );
   }
 
   return (
-    <div style={{ padding: '20px', paddingTop: '100px'}}>
-      <Typography variant="h4" gutterBottom>
+    <div className="p-5 pt-24">
+      <Typography variant="h4" className="mb-4">
         Quiz Analytics
       </Typography>
       
@@ -70,7 +70,7 @@ const AnalyticsPage = () => {
           <Grid item xs={12} md={6} key={topic._id}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" className="mb-4">
                   {topic._id}
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
@@ -84,13 +84,13 @@ const AnalyticsPage = () => {
                     <Bar dataKey="highestScore" name="Highest Score" fill="#82ca9d" />
                   </BarChart>
                 </ResponsiveContainer>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" className="text-gray-500">
                   Total Attempts: {topic.totalAttempts}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" className="text-gray-500">
                   Success Rate: {topic.successRate}%
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" className="text-gray-500">
                   Average Time per Question: {topic.averageTimePerQuestion} seconds
                 </Typography>
               </CardContent>
