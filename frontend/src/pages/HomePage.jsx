@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaRocket, FaCode, FaBrain, FaLaptopCode, FaBriefcase, FaComments } from "react-icons/fa";
 import { startQuizAttempt } from "../apis/quizApi";
+import toast from "react-hot-toast";
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const HomePage = () => {
 
       if (!response.success) {
         console.log("[Start Quiz] API returned failure:", response);
+        toast.error(response.message || "No questions available for this topic and difficulty");
         setError(response.message || "Failed to start quiz");
         return;
       }
@@ -46,6 +48,7 @@ const HomePage = () => {
       });
     } catch (error) {
       console.error("[Start Quiz] Error:", error);
+      toast.error(error.message || "Failed to start quiz");
       setError(error.message || "Failed to start quiz");
     } finally {
       setLoading(false);
