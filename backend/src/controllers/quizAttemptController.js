@@ -104,7 +104,12 @@ export const startQuizAttempt = async (req, res) => {
 
     // Populate the questions before sending response
     const populatedAttempt = await QuizAttempt.findById(newAttempt._id)
-      .populate('questions.questionId');
+      .populate({
+        path: 'questions.questionId',
+        select: 'question type topic difficulty options correctAnswer tags timeLimit'
+      });
+
+    // console.log('[DEBUG] Populated attempt:', JSON.stringify(populatedAttempt, null, 2));
 
     res.status(201).json({ 
       success: true, 

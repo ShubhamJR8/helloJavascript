@@ -6,6 +6,7 @@ import { Alert, CircularProgress, Typography } from "@mui/material";
 import MasteredQuizMessage from "../components/MasteredQuizMessage";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import toast from "react-hot-toast";
 import '../styles/QuizPage.css';
 
 // Constants for validation
@@ -99,6 +100,7 @@ const QuizPage = () => {
           const startResponse = await retryOperation(async () => {
             const response = await startQuizAttempt(topic, difficulty);
             if (!response.success) {
+              toast.error(response.message || "No questions available for this topic and difficulty");
               throw new Error(response.message || "Failed to start quiz attempt");
             }
             return response;
@@ -126,6 +128,7 @@ const QuizPage = () => {
         // Validate attempt data
         if (!attemptData || !attemptData.questions || !Array.isArray(attemptData.questions)) {
           console.error('Invalid attempt data:', attemptData);
+          toast.error("Invalid quiz attempt data: missing or invalid questions");
           throw new Error("Invalid quiz attempt data: missing or invalid questions");
         }
 
@@ -146,11 +149,13 @@ const QuizPage = () => {
             options: q.questionId.options || [],
             timeLimit: q.questionId.timeLimit || 30,
             type: q.questionId.type || 'mcq',
-            correctAnswer: q.questionId.correctAnswer
+            correctAnswer: q.questionId.correctAnswer,
+            tags: q.questionId.tags || []
           };
         });
 
         if (populatedQuestions.length === 0) {
+          toast.error("No questions available for this quiz");
           throw new Error("No questions available for this quiz");
         }
 
@@ -169,6 +174,7 @@ const QuizPage = () => {
 
       } catch (error) {
         console.error("Error in fetchAttemptAndQuestions:", error);
+        toast.error(error.message || "Failed to load quiz");
         setError(error.message || "Failed to load quiz");
         if (retryCount < MAX_RETRY_ATTEMPTS) {
           setRetryCount(prev => prev + 1);
@@ -320,6 +326,21 @@ const QuizPage = () => {
             </p>
           );
         })}
+
+        {/* Display tags if they exist */}
+        {console.log(question)}
+        {question.tags && question.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {question.tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   };

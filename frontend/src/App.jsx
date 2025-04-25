@@ -16,6 +16,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import UserProfile from './pages/UserProfile';
 import { checkAuth } from './utils/auth';
 import UnauthorizedAccess from './components/UnauthorizedAccess';
+import { Toaster } from "react-hot-toast";
 
 const AppContent = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -52,6 +53,17 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-gray-900">
       <Navbar isAuthenticated={isAuthenticated} />
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+        }}
+      />
       <div className="container mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
@@ -122,6 +134,17 @@ const AppContent = () => {
 const App = () => {
   return (
     <Router>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+        }}
+      />
       <AppContent />
     </Router>
   );
