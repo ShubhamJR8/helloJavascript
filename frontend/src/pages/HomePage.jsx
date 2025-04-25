@@ -14,8 +14,20 @@ const HomePage = () => {
   const [error, setError] = useState(null);
 
   const topics = ["javascript", "typescript", "react", "node"];
+  const difficulties = ["easy", "medium", "hard"];
 
   const handleStartQuiz = async (selectedTopic, selectedDifficulty) => {
+    // Validate inputs
+    if (!selectedTopic) {
+      toast.error("Please select a topic");
+      return;
+    }
+    if (!selectedDifficulty) {
+      toast.error("Please select a difficulty level");
+      setShowWarning(true);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -53,6 +65,14 @@ const HomePage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCodingQuestion = (selectedTopic) => {
+    if (!selectedTopic) {
+      toast.error("Please select a topic first");
+      return;
+    }
+    navigate(`/coding-question/${selectedTopic.toLowerCase()}`);
   };
 
   return (
@@ -98,7 +118,7 @@ const HomePage = () => {
             animate={{ opacity: 1, scale: 1 }} 
             transition={{ duration: 0.6 }}
           >
-            {["easy", "medium", "hard"].map((level) => (
+            {difficulties.map((level) => (
               <button
                 key={level}
                 onClick={() => {
@@ -117,9 +137,13 @@ const HomePage = () => {
           </motion.div>
 
           {showWarning && !difficulty && (
-            <p className="text-red-500 font-semibold mt-2">
+            <motion.p 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-red-500 font-semibold mt-2"
+            >
               Please select a difficulty level to start the quiz.
-            </p>
+            </motion.p>
           )}
         </>
       )}
@@ -131,14 +155,22 @@ const HomePage = () => {
             onClick={() => handleStartQuiz(selectedTopic, difficulty)}
             className="px-8 py-3 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-all shadow-xl"
             whileHover={{ scale: 1.05 }}
+            disabled={loading}
           >
-            Start Quiz ✨
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
+                Starting Quiz...
+              </div>
+            ) : (
+              "Start Quiz ✨"
+            )}
           </motion.button>
         )}
 
         {selectedTopic && (
           <motion.button
-            onClick={() => navigate(`/coding-question/${selectedTopic.toLowerCase()}`)}
+            onClick={() => handleCodingQuestion(selectedTopic)}
             className="px-8 py-3 bg-purple-500 text-white text-lg font-bold rounded-lg hover:bg-purple-600 transition-all shadow-xl"
             whileHover={{ scale: 1.05 }}
           >
