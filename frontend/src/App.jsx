@@ -17,6 +17,11 @@ import UserProfile from './pages/UserProfile';
 import { checkAuth } from './utils/auth';
 import UnauthorizedAccess from './components/UnauthorizedAccess';
 import { Toaster } from "react-hot-toast";
+import DailyJavaScriptChallenge from "./pages/DailyJavaScriptChallenge";
+import ConceptBasedMCQs from "./pages/ConceptBasedMCQs";
+import CodingQuestions from "./pages/CodingQuestions";
+import JavaScriptConceptsVisual from "./pages/JavaScriptConceptsVisual";
+import Blogs from "./pages/Blogs";
 
 const AppContent = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -123,6 +128,11 @@ const AppContent = () => {
             <Route path="/coding-question/:topic" element={<CodingQuestionPage />} />
             <Route path="/mock-interviews" element={<MockInterviews />} />
             <Route path="/job-listings" element={<JobListings />} />
+            <Route path="/daily-javascript-challenge" element={<DailyJavaScriptChallenge />} />
+            <Route path="/concept-based-mcqs" element={<ConceptBasedMCQs />} />
+            <Route path="/coding-questions" element={<CodingQuestions />} />
+            <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
+            <Route path="/blogs" element={<Blogs />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>
