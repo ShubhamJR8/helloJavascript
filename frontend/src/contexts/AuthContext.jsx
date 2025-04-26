@@ -19,11 +19,19 @@ export const AuthProvider = ({ children }) => {
   const login = (userData) => {
     localStorage.setItem('token', userData.token);
     setUser(userData);
+    // Dispatch tokenChange event
+    window.dispatchEvent(new Event('tokenChange'));
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
+    // Clear any other auth-related data
+    localStorage.removeItem('user');
+    // Dispatch tokenChange event
+    window.dispatchEvent(new Event('tokenChange'));
+    // Force a re-render of the app
+    window.location.reload();
   };
 
   const value = {

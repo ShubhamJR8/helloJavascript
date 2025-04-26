@@ -47,10 +47,38 @@ const AppContent = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showUnauthorized, setShowUnauthorized] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Initial check
     setIsAuthenticated(checkAuth());
-  }, []);
+
+    // Listen for storage changes
+    const handleStorageChange = () => {
+      const newAuthState = checkAuth();
+      setIsAuthenticated(newAuthState);
+      if (!newAuthState) {
+        navigate('/login');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [navigate]);
+
+  // Listen for token changes
+  useEffect(() => {
+    const handleTokenChange = () => {
+      const newAuthState = checkAuth();
+      setIsAuthenticated(newAuthState);
+      if (!newAuthState) {
+        navigate('/login');
+      }
+    };
+
+    window.addEventListener('tokenChange', handleTokenChange);
+    return () => window.removeEventListener('tokenChange', handleTokenChange);
+  }, [navigate]);
 
   useEffect(() => {
     const handleUnauthorized = (event) => {
