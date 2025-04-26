@@ -44,6 +44,7 @@ const RadialProgress = ({ value, max, color = '#00bcd4', size = 120, centerText 
         lineHeight: 1.1
       }}>
         {centerText}
+        <div style={{ color: '#b0b6c3', fontSize: size * 0.16, marginTop: size * 0.08 }}>{label}</div>
         <div style={{ fontWeight: 400, fontSize: size * 0.16, color: '#b0b6c3' }}>{value} / {max}</div>
       </div>
     </div>
