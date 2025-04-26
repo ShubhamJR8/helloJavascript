@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { fetchUserDetails } from '../utils/auth';
 
 const AuthContext = createContext();
 
@@ -10,15 +11,21 @@ export const AuthProvider = ({ children }) => {
     // Check if user is logged in
     const token = localStorage.getItem('token');
     if (token) {
-      // You can add a function here to validate the token with your backend
-      setUser({ token });
+      // Fetch user details
+      const loadUserDetails = async () => {
+        const userData = await fetchUserDetails();
+        setUser(userData);
+        setLoading(false);
+      };
+      loadUserDetails();
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const login = (userData) => {
     localStorage.setItem('token', userData.token);
-    setUser(userData);
+    setUser(userData.user);
     // Dispatch tokenChange event
     window.dispatchEvent(new Event('tokenChange'));
   };

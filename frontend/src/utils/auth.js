@@ -1,3 +1,5 @@
+import { getUserProfile } from '../apis/userApi';
+
 export const isAuthenticated = () => {
   const token = localStorage.getItem('token');
   return !!token;
@@ -39,4 +41,19 @@ export const checkAuth = () => {
   // }
 
   return true;
+};
+
+export const fetchUserDetails = async () => {
+  try {
+    const response = await getUserProfile();
+    if (response.success && response.data.success) {
+      const userData = response.data.user;
+      setUser(userData); // Store in localStorage
+      return userData;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    return null;
+  }
 }; 
