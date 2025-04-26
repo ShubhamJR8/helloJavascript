@@ -5,6 +5,7 @@ import { FaSpinner, FaExclamationCircle, FaRedo } from 'react-icons/fa';
 import { motion } from "framer-motion";
 import { FaBriefcase, FaMapMarkerAlt, FaMoneyBillWave, FaClock } from "react-icons/fa";
 import { fetchJobs } from "../apis/jobApi";
+import UnderDevelopment from './UnderDevelopment';
 
 const JobListings = () => {
   const [filters, setFilters] = useState({
@@ -76,6 +77,8 @@ const JobListings = () => {
   };
 
   return (
+    <>
+    <UnderDevelopment />
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Job Listings</h1>
       
@@ -142,6 +145,7 @@ const JobListings = () => {
         </>
       )}
     </div>
+    </>
   );
 };
 
