@@ -13,7 +13,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const topics = ["javascript", "typescript", "react", "node"];
+  const topics = ["javascript", "typescript", "react", "angular", "node"];
   const difficulties = ["easy", "medium", "hard"];
 
   const handleStartQuiz = async (selectedTopic, selectedDifficulty) => {
@@ -32,12 +32,9 @@ const HomePage = () => {
       setLoading(true);
       setError(null);
 
-      console.log("[Start Quiz] Starting quiz with:", { selectedTopic, selectedDifficulty });
       const response = await startQuizAttempt(selectedTopic, selectedDifficulty);
-      console.log("[Start Quiz] API Response:", response);
 
       if (!response.success) {
-        console.log("[Start Quiz] API returned failure:", response);
         toast.error(response.message || "No questions available for this topic and difficulty");
         setError(response.message || "Failed to start quiz");
         return;
@@ -59,7 +56,6 @@ const HomePage = () => {
         }
       });
     } catch (error) {
-      console.error("[Start Quiz] Error:", error);
       toast.error(error.message || "Failed to start quiz");
       setError(error.message || "Failed to start quiz");
     } finally {
@@ -104,7 +100,7 @@ const HomePage = () => {
               selectedTopic === topic ? "bg-teal-400 text-white scale-110" : "bg-gray-800 hover:bg-teal-600 hover:scale-105"
             }`}
           >
-            {topic}
+            {topic.charAt(0).toUpperCase() + topic.slice(1)}
           </button>
         ))}
       </motion.div>

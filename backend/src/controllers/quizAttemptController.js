@@ -8,8 +8,6 @@ export const startQuizAttempt = async (req, res) => {
     const { topic, difficulty } = req.body;
     const userId = req.user._id; // Get user ID from auth middleware
     
-    console.log(`[START QUIZ ATTEMPT] User: ${userId}, Topic: ${topic}, Difficulty: ${difficulty}`);
-
     // Check if there is an existing in-progress attempt
     let existingAttempt = await QuizAttempt.findOne({ 
       user: userId, 
@@ -18,7 +16,6 @@ export const startQuizAttempt = async (req, res) => {
     }).populate('questions.questionId');
 
     if (existingAttempt) {
-      console.log(`[RESUMING ATTEMPT] Attempt ID: ${existingAttempt._id}`);
       return res.status(200).json({ 
         success: true, 
         attemptId: existingAttempt._id,
@@ -51,7 +48,6 @@ export const startQuizAttempt = async (req, res) => {
     });
 
     if (!allQuestions.length) {
-      console.warn(`[NO QUESTIONS AVAILABLE] Topic: ${topic}, Difficulty: ${difficulty}`);
       return res.status(404).json({ 
         success: false, 
         message: "No questions available for this topic and difficulty" 
@@ -107,8 +103,6 @@ export const startQuizAttempt = async (req, res) => {
         path: 'questions.questionId',
         select: 'question type topic difficulty options correctAnswer tags timeLimit'
       });
-
-    // console.log('[DEBUG] Populated attempt:', JSON.stringify(populatedAttempt, null, 2));
 
     res.status(201).json({ 
       success: true, 
@@ -241,7 +235,6 @@ export const completeQuizAttempt = async (req, res) => {
       setImmediate(async () => {
         try {
           await QuizAttempt.findByIdAndDelete(currentAttempt._id);
-          console.log(`[DELETED MERGED ATTEMPT] ${currentAttempt._id}`);
         } catch (err) {
           console.error(`[DELETE ERROR] ${currentAttempt._id}`, err);
         }
@@ -360,8 +353,6 @@ export const getQuizAnalytics = async (req, res) => {
         }
       }
     ]);
-
-    console.log('[ANALYTICS] User:', userId, 'Data:', analytics);
 
     res.status(200).json({
       success: true,
