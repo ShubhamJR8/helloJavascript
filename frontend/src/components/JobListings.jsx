@@ -56,7 +56,6 @@ const JobListings = () => {
   const handleSaveJob = async (jobId) => {
     try {
       // In a real app, this would make an API call to save the job
-      console.log(`Job ${jobId} saved`);
     } catch (error) {
       console.error('Error saving job:', error);
     }

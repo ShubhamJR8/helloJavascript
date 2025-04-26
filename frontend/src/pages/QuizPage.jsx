@@ -266,9 +266,6 @@ const QuizPage = () => {
 
   const handleSubmit = async () => {
     try {
-      // Log the questions structure for debugging
-      console.log('Questions structure:', questions);
-
       // Prepare answers with proper validation
       const validatedAnswers = questions.map((question, index) => {
         const answer = answers[index];
@@ -343,7 +340,6 @@ const QuizPage = () => {
         })}
 
         {/* Display tags if they exist */}
-        {console.log(question)}
         {question.tags && question.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4">
             {question.tags.map((tag, index) => (

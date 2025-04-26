@@ -57,11 +57,9 @@ const ResultPage = () => {
   }, [urlAttemptId, location.state]);
 
   const handleRetryQuiz = async () => {
-    console.log("Attempting to retry quiz with topic:", result.topic, "and difficulty:", result.difficulty);
     if (result?.topic && result?.difficulty) {
       try {
         const response = await startQuizAttempt(result.topic, result.difficulty);
-        console.log("[Retry Quiz] Response:", response);
         
         if (response.success) {
           if (response.data.mastered) {

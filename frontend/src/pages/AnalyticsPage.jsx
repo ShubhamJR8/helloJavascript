@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { getQuizAnalytics } from '../apis/quizApi';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Typography, Card, CardContent, Grid, CircularProgress, Alert, LinearProgress, Box, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
-import { FaChartLine, FaTrophy, FaClock, FaCheckCircle, FaChevronDown } from 'react-icons/fa';
+import RadialProgress from '../components/RadialProgress';
+
+const DIFFICULTY_COLORS = {
+  easy: '#3ec6e0',
+  medium: '#ffb547',
+  hard: '#ff4c4c',
+};
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState([]);
@@ -34,7 +39,7 @@ const AnalyticsPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <CircularProgress />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mx-auto"></div>
       </div>
     );
   }
@@ -42,102 +47,70 @@ const AnalyticsPage = () => {
   if (error) {
     return (
       <div className="p-5 pt-24">
-        <Alert severity="error">{error}</Alert>
+        <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center text-red-400 font-bold">
+          {error}
+        </div>
       </div>
     );
   }
 
   if (!analytics || analytics.length === 0) {
     return (
-      <Alert severity="info" className="mt-15">
-        No analytics data available yet. Complete some quizzes to see your performance.
-      </Alert>
+      <div className="mt-24 flex justify-center">
+        <div className="bg-gray-800 text-white px-6 py-4 rounded-lg shadow-lg text-lg">
+          No analytics data available yet. Complete some quizzes to see your performance.
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="p-5 pt-24">
-      <Typography variant="h4" className="mb-4">
-        Quiz Analytics
-      </Typography>
-      
-      <Grid container spacing={3}>
-        {analytics.map((topic) => (
-          <Grid item xs={12} key={topic._id}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" className="mb-4">
-                  {topic._id}
-                </Typography>
-                
-                <Box className="mb-4">
-                  <Typography variant="body1" className="mb-2">
-                    <FaChartLine className="inline mr-2" /> Total Attempts: {topic.totalAttempts}
-                  </Typography>
-                  <LinearProgress variant="determinate" value={topic.totalAttempts} className="mb-2" />
-                </Box>
+    <div className="flex flex-wrap justify-center gap-10 min-h-screen bg-gray-900 pt-24 pb-10">
+      {analytics.map((topic) => {
+        const totalSolved = topic.correctAnswers || 0;
+        const totalQuestions = topic.totalQuestions || 0;
+        const totalAttempts = topic.totalAttempts || 0;
+        const attempting = (topic.totalAttempts - topic.completedAttempts) || 0;
+        const topicName = topic._id.charAt(0).toUpperCase() + topic._id.slice(1);
 
-                <Box className="mb-4">
-                  <Typography variant="body1" className="mb-2">
-                    <FaTrophy className="inline mr-2" /> Average Score: {topic.averageScore}%
-                  </Typography>
-                  <LinearProgress variant="determinate" value={topic.averageScore} className="mb-2" />
-                </Box>
+        // Difficulty breakdown
+        const difficultyStats = [
+          { label: 'Easy', key: 'easy', color: DIFFICULTY_COLORS.easy },
+          { label: 'Med.', key: 'medium', color: DIFFICULTY_COLORS.medium },
+          { label: 'Hard', key: 'hard', color: DIFFICULTY_COLORS.hard },
+        ].map(diff => {
+          const found = (topic.difficulties || []).find(d => d.difficulty === diff.key) || {};
+          return {
+            ...diff,
+            solved: found.correctAnswers || 0,
+            total: found.totalQuestions || 0,
+          };
+        });
 
-                <Box className="mb-4">
-                  <Typography variant="body1" className="mb-2">
-                    <FaTrophy className="inline mr-2" /> Highest Score: {topic.highestScore}%
-                  </Typography>
-                  <LinearProgress variant="determinate" value={topic.highestScore} className="mb-2" />
-                </Box>
-
-                <Box className="mb-4">
-                  <Typography variant="body1" className="mb-2">
-                    <FaCheckCircle className="inline mr-2" /> Success Rate: {topic.successRate}%
-                  </Typography>
-                  <LinearProgress variant="determinate" value={topic.successRate} className="mb-2" />
-                </Box>
-
-                <Accordion>
-                  <AccordionSummary expandIcon={<FaChevronDown />}>
-                    <Typography>Difficulty Breakdown</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Grid container spacing={2}>
-                      {(topic.difficulties || []).map((diff) => (
-                        <Grid item xs={12} md={4} key={diff.difficulty}>
-                          <Card variant="outlined">
-                            <CardContent>
-                              <Typography variant="subtitle1" className="mb-2">
-                                {diff.difficulty.charAt(0).toUpperCase() + diff.difficulty.slice(1)}
-                              </Typography>
-                              <Typography variant="body2">
-                                Attempts: {diff.totalAttempts}
-                              </Typography>
-                              <Typography variant="body2">
-                                Average Score: {diff.averageScore}%
-                              </Typography>
-                              <Typography variant="body2">
-                                Highest Score: {diff.highestScore}%
-                              </Typography>
-                              <Typography variant="body2">
-                                Success Rate: {diff.successRate}%
-                              </Typography>
-                              <Typography variant="body2">
-                                Avg Time/Question: {diff.averageTimePerQuestion}s
-                              </Typography>
-                            </CardContent>
-                          </Card>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+        return (
+          <div key={topic._id} className="flex flex-col md:flex-row items-center bg-[#23272f] rounded-2xl shadow-xl p-8 min-w-[320px] gap-8 relative">
+            {/* Donut Progress */}
+            <div className="relative flex flex-col items-center justify-center">
+              <RadialProgress value={totalSolved} max={totalQuestions} color="#3ec6e0" size={160} centerText={totalAttempts} />
+              <div className="absolute left-1/2 top-[72%] -translate-x-1/2 text-gray-400 text-md font-semibold whitespace-nowrap">
+                <span className="text-teal-400">{attempting}</span> Attempting
+              </div>
+            </div>
+            {/* Difficulty Breakdown */}
+            <div className="flex flex-col gap-4 min-w-[180px]">
+              <div className="text-xl font-bold text-white mb-2 text-center md:text-left">{topicName}</div>
+              {difficultyStats.map(diff => (
+                <div key={diff.key} className="flex items-center justify-between bg-[#23272f] rounded-xl px-6 py-3 shadow-lg">
+                  <span className="font-bold text-lg" style={{ color: diff.color }}>{diff.label}</span>
+                  <span className="font-mono text-white text-lg">
+                    {diff.solved}<span className="text-gray-400">/{diff.total}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
