@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import HomePage from './pages/HomePage';
 import QuizPage from './pages/QuizPage';
@@ -16,12 +16,32 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import UserProfile from './pages/UserProfile';
 import { checkAuth } from './utils/auth';
 import UnauthorizedAccess from './components/UnauthorizedAccess';
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from 'react-hot-toast';
 import DailyJavaScriptChallenge from "./pages/DailyJavaScriptChallenge";
 import ConceptBasedMCQs from "./pages/ConceptBasedMCQs";
 import CodingQuestions from "./pages/CodingQuestions";
 import JavaScriptConceptsVisual from "./pages/JavaScriptConceptsVisual";
 import Blogs from "./pages/Blogs";
+
+const NavigationGuard = ({ children }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const previousLocation = useRef(location);
+
+  useEffect(() => {
+    // Check if we're trying to go back to quiz from result
+    if (previousLocation.current?.pathname?.includes('/result') && 
+        location.pathname.includes('/quiz') &&
+        !location.state?.isRetry) {  // Only block if it's not a retry attempt
+      toast.error("Cannot go back to quiz from result page. Please start a new quiz.");
+      navigate('/');
+      return;
+    }
+    previousLocation.current = location;
+  }, [location, navigate]);
+
+  return children;
+};
 
 const AppContent = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -71,70 +91,72 @@ const AppContent = () => {
       />
       <div className="container mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<HomePage />} />
-            <Route
-              path="/login"
-              element={
-                isAuthenticated ? (
-                  <Navigate to="/" replace />
-                ) : (
-                  <LoginPage setIsAuthenticated={setIsAuthenticated} />
-                )
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                isAuthenticated ? (
-                  <Navigate to="/" replace />
-                ) : (
-                  <RegisterPage setIsAuthenticated={setIsAuthenticated} />
-                )
-              }
-            />
-            <Route
-              path="/quiz/:topic/:difficulty"
-              element={
-                <ProtectedRoute>
-                  <QuizPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/result/:attemptId"
-              element={
-                <ProtectedRoute>
-                  <ResultPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <AnalyticsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <UserProfile />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/coding-question/:topic" element={<CodingQuestionPage />} />
-            <Route path="/mock-interviews" element={<MockInterviews />} />
-            <Route path="/job-listings" element={<JobListings />} />
-            <Route path="/daily-javascript-challenge" element={<DailyJavaScriptChallenge />} />
-            <Route path="/concept-based-mcqs" element={<ConceptBasedMCQs />} />
-            <Route path="/coding-questions" element={<CodingQuestions />} />
-            <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
-            <Route path="/blogs" element={<Blogs />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <NavigationGuard>
+            <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<HomePage />} />
+              <Route
+                path="/login"
+                element={
+                  isAuthenticated ? (
+                    <Navigate to="/" replace />
+                  ) : (
+                    <LoginPage setIsAuthenticated={setIsAuthenticated} />
+                  )
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  isAuthenticated ? (
+                    <Navigate to="/" replace />
+                  ) : (
+                    <RegisterPage setIsAuthenticated={setIsAuthenticated} />
+                  )
+                }
+              />
+              <Route
+                path="/quiz/:topic/:difficulty"
+                element={
+                  <ProtectedRoute>
+                    <QuizPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/result/:attemptId"
+                element={
+                  <ProtectedRoute>
+                    <ResultPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <AnalyticsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <UserProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/coding-question/:topic" element={<CodingQuestionPage />} />
+              <Route path="/mock-interviews" element={<MockInterviews />} />
+              <Route path="/job-listings" element={<JobListings />} />
+              <Route path="/daily-javascript-challenge" element={<DailyJavaScriptChallenge />} />
+              <Route path="/concept-based-mcqs" element={<ConceptBasedMCQs />} />
+              <Route path="/coding-questions" element={<CodingQuestions />} />
+              <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
+              <Route path="/blogs" element={<Blogs />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </NavigationGuard>
         </AnimatePresence>
       </div>
     </div>

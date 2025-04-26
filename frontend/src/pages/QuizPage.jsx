@@ -41,6 +41,14 @@ const QuizPage = () => {
     }
   };
 
+  // Prevent direct access without proper state
+  useEffect(() => {
+    if (!location.state?.attemptId && !location.state?.data && !location.state?.mastered) {
+      toast.error("Invalid quiz access. Please start a new quiz.");
+      navigate('/');
+    }
+  }, [location.state, navigate]);
+
   // Auto-save progress
   const autoSaveProgress = () => {
     if (attemptId && questions.length > 0) {
@@ -94,6 +102,13 @@ const QuizPage = () => {
         // Get the attempt ID from location state or create a new attempt
         let attemptId = location.state?.attemptId;
         let attemptData = location.state?.data;
+        
+        // Check if we're coming from result page without proper state
+        if (!attemptId && !attemptData && location.state?.fromResult) {
+          toast.error("Cannot resume quiz from result page. Please start a new quiz.");
+          navigate('/');
+          return;
+        }
         
         if (!attemptId || !attemptData) {
           // Create a new quiz attempt with retry mechanism

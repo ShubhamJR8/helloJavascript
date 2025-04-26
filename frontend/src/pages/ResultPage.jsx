@@ -66,13 +66,17 @@ const ResultPage = () => {
         if (response.success) {
           if (response.data.mastered) {
             navigate(`/quiz/${result.topic}/${result.difficulty}`, {
-              state: { mastered: true }
+              state: { 
+                mastered: true,
+                isRetry: true
+              }
             });
           } else {
             navigate(`/quiz/${result.topic}/${result.difficulty}`, {
               state: {
                 attemptId: response.attemptId,
-                data: response.data
+                data: response.data,
+                isRetry: true
               }
             });
           }
