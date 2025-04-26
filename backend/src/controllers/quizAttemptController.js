@@ -100,7 +100,6 @@ export const startQuizAttempt = async (req, res) => {
     });
 
     await newAttempt.save();
-    console.log(`[NEW ATTEMPT CREATED] Attempt ID: ${newAttempt._id}`);
 
     // Populate the questions before sending response
     const populatedAttempt = await QuizAttempt.findById(newAttempt._id)
@@ -149,6 +148,7 @@ export const completeQuizAttempt = async (req, res) => {
       const index = currentAttempt.questions.findIndex(
         q => q.questionId._id.toString() === answer.questionId
       );
+
       if (index >= 0) {
         const q = currentAttempt.questions[index];
         const qData = q.questionId;
@@ -168,10 +168,9 @@ export const completeQuizAttempt = async (req, res) => {
       }
     }
 
-    const totalScore = (correctAnswers / currentAttempt.totalQuestions) * 100;
-
     currentAttempt.correctAnswers = correctAnswers;
-    currentAttempt.totalScore = totalScore;
+    currentAttempt.totalQuestions = currentAttempt.questions.length;
+    currentAttempt.totalScore = (correctAnswers / (currentAttempt.totalQuestions || 1)) * 100;
     currentAttempt.status = "completed";
     currentAttempt.isSubmitted = true;
     currentAttempt.endTime = new Date();
@@ -192,7 +191,9 @@ export const completeQuizAttempt = async (req, res) => {
         existingAttempt.questions.map(q => q.questionId.toString())
       );
 
-      const newCorrectQs = currentAttempt.questions.filter(q => q.isCorrect && !existingIds.has(q.questionId._id.toString()));
+      const newCorrectQs = currentAttempt.questions.filter(
+        q => q.isCorrect && !existingIds.has(q.questionId._id.toString())
+      );
 
       if (newCorrectQs.length > 0) {
         for (const newQ of newCorrectQs) {
@@ -205,14 +206,22 @@ export const completeQuizAttempt = async (req, res) => {
           });
         }
 
-        // ✅ Update correctAnswers and totalScore
+        // ❗ Fix: Increment total attempted questions by all attempted, not just correct ones
+        existingAttempt.totalQuestions += currentAttempt.questions.length;
+
         existingAttempt.correctAnswers = existingAttempt.questions.filter(q => q.isCorrect).length;
-        existingAttempt.totalQuestions = existingAttempt.questions.length;
-        existingAttempt.totalScore = (existingAttempt.correctAnswers / existingAttempt.totalQuestions) * 100;
+        existingAttempt.totalScore = (existingAttempt.correctAnswers / (existingAttempt.totalQuestions || 1)) * 100;
 
         await existingAttempt.save();
         wasMerged = true;
       }
+    }
+
+    if (!wasMerged) {
+      currentAttempt.questions = currentAttempt.questions.filter(q => q.isCorrect);
+      currentAttempt.totalQuestions = currentAttempt.questions.length;
+      currentAttempt.correctAnswers = currentAttempt.questions.length;
+      currentAttempt.totalScore = (currentAttempt.correctAnswers / (currentAttempt.totalQuestions || 1)) * 100;
     }
 
     await currentAttempt.save();
@@ -222,13 +231,12 @@ export const completeQuizAttempt = async (req, res) => {
       message: "Quiz attempt completed successfully",
       data: {
         attemptId: currentAttempt._id,
-        totalScore,
-        correctAnswers,
+        totalScore: currentAttempt.totalScore,
+        correctAnswers: currentAttempt.correctAnswers,
         totalQuestions: currentAttempt.totalQuestions
       }
     });
 
-    // After response, delete attempt only if merged
     if (wasMerged) {
       setImmediate(async () => {
         try {

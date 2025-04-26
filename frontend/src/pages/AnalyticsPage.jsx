@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getQuizAnalytics } from '../apis/quizApi';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Card, CardContent, Typography, Grid, CircularProgress, Alert } from '@mui/material';
+import { Typography, Card, CardContent, Grid, CircularProgress, Alert, LinearProgress, Box, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import { FaChartLine, FaTrophy, FaClock, FaCheckCircle, FaChevronDown } from 'react-icons/fa';
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState([]);
@@ -15,18 +15,14 @@ const AnalyticsPage = () => {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        setLoading(true);
         const response = await getQuizAnalytics();
-        
-        if (!response.success) {
-          throw new Error(response.message);
+        if (response.success) {
+          setAnalytics(response.data);
+        } else {
+          setError(response.message || "Failed to fetch analytics");
         }
-
-        setAnalytics(response.data);
-        setError(null);
       } catch (err) {
-        setError(err.message);
-        setAnalytics([]);
+        setError(err.message || "Failed to fetch analytics");
       } finally {
         setLoading(false);
       }
@@ -37,7 +33,7 @@ const AnalyticsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
         <CircularProgress />
       </div>
     );
@@ -45,9 +41,9 @@ const AnalyticsPage = () => {
 
   if (error) {
     return (
-      <Alert severity="error" className="mt-2">
-        {error}
-      </Alert>
+      <div className="p-5 pt-24">
+        <Alert severity="error">{error}</Alert>
+      </div>
     );
   }
 
@@ -67,32 +63,76 @@ const AnalyticsPage = () => {
       
       <Grid container spacing={3}>
         {analytics.map((topic) => (
-          <Grid item xs={12} md={6} key={topic._id}>
+          <Grid item xs={12} key={topic._id}>
             <Card>
               <CardContent>
                 <Typography variant="h6" className="mb-4">
                   {topic._id}
                 </Typography>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={[topic]}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="_id" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="averageScore" name="Average Score" fill="#8884d8" />
-                    <Bar dataKey="highestScore" name="Highest Score" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
-                <Typography variant="body2" className="text-gray-500">
-                  Total Attempts: {topic.totalAttempts}
-                </Typography>
-                <Typography variant="body2" className="text-gray-500">
-                  Success Rate: {topic.successRate}%
-                </Typography>
-                <Typography variant="body2" className="text-gray-500">
-                  Average Time per Question: {topic.averageTimePerQuestion} seconds
-                </Typography>
+                
+                <Box className="mb-4">
+                  <Typography variant="body1" className="mb-2">
+                    <FaChartLine className="inline mr-2" /> Total Attempts: {topic.totalAttempts}
+                  </Typography>
+                  <LinearProgress variant="determinate" value={topic.totalAttempts} className="mb-2" />
+                </Box>
+
+                <Box className="mb-4">
+                  <Typography variant="body1" className="mb-2">
+                    <FaTrophy className="inline mr-2" /> Average Score: {topic.averageScore}%
+                  </Typography>
+                  <LinearProgress variant="determinate" value={topic.averageScore} className="mb-2" />
+                </Box>
+
+                <Box className="mb-4">
+                  <Typography variant="body1" className="mb-2">
+                    <FaTrophy className="inline mr-2" /> Highest Score: {topic.highestScore}%
+                  </Typography>
+                  <LinearProgress variant="determinate" value={topic.highestScore} className="mb-2" />
+                </Box>
+
+                <Box className="mb-4">
+                  <Typography variant="body1" className="mb-2">
+                    <FaCheckCircle className="inline mr-2" /> Success Rate: {topic.successRate}%
+                  </Typography>
+                  <LinearProgress variant="determinate" value={topic.successRate} className="mb-2" />
+                </Box>
+
+                <Accordion>
+                  <AccordionSummary expandIcon={<FaChevronDown />}>
+                    <Typography>Difficulty Breakdown</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={2}>
+                      {(topic.difficulties || []).map((diff) => (
+                        <Grid item xs={12} md={4} key={diff.difficulty}>
+                          <Card variant="outlined">
+                            <CardContent>
+                              <Typography variant="subtitle1" className="mb-2">
+                                {diff.difficulty.charAt(0).toUpperCase() + diff.difficulty.slice(1)}
+                              </Typography>
+                              <Typography variant="body2">
+                                Attempts: {diff.totalAttempts}
+                              </Typography>
+                              <Typography variant="body2">
+                                Average Score: {diff.averageScore}%
+                              </Typography>
+                              <Typography variant="body2">
+                                Highest Score: {diff.highestScore}%
+                              </Typography>
+                              <Typography variant="body2">
+                                Success Rate: {diff.successRate}%
+                              </Typography>
+                              <Typography variant="body2">
+                                Avg Time/Question: {diff.averageTimePerQuestion}s
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
               </CardContent>
             </Card>
           </Grid>
