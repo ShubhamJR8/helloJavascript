@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FaCalendarAlt, FaMoneyBillWave, FaVideo, FaComments } from "react-icons/fa";
+import UnderDevelopment from "../components/UnderDevelopment";
 
 const MockInterviews = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +20,8 @@ const MockInterviews = () => {
   };
 
   return (
+    <>
+    <UnderDevelopment />
     <div className="w-full min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
       <h1 className="text-4xl font-bold text-teal-400 flex items-center gap-2">
         <FaComments /> Mock Interviews & Feedback Report
@@ -48,6 +51,7 @@ const MockInterviews = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
