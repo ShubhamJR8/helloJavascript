@@ -1,44 +1,60 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchUserDetails } from '../utils/auth';
+import { fetchUserDetails, setUser, getUser, logout as authLogout } from '../utils/auth';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Fetch user details
-      const loadUserDetails = async () => {
+  const loadUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
         const userData = await fetchUserDetails();
-        setUser(userData);
-        setLoading(false);
-      };
-      loadUserDetails();
-    } else {
+        if (userData) {
+          setUserState(userData);
+          setUser(userData); // Store in localStorage
+        } else {
+          setUserState(null);
+          localStorage.removeItem('user');
+        }
+      } else {
+        setUserState(null);
+        localStorage.removeItem('user');
+      }
+    } catch (error) {
+      console.error('Error loading user:', error);
+      setUserState(null);
+      localStorage.removeItem('user');
+    } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadUser();
+
+    // Listen for token changes
+    const handleTokenChange = () => {
+      loadUser();
+    };
+
+    window.addEventListener('tokenChange', handleTokenChange);
+    return () => window.removeEventListener('tokenChange', handleTokenChange);
   }, []);
 
   const login = (userData) => {
     localStorage.setItem('token', userData.token);
-    setUser(userData.user);
-    // Dispatch tokenChange event
+    setUserState(userData.user);
+    setUser(userData.user); // Store in localStorage
     window.dispatchEvent(new Event('tokenChange'));
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    // Clear any other auth-related data
-    localStorage.removeItem('user');
-    // Dispatch tokenChange event
+    authLogout(); // This will remove both token and user from localStorage
+    setUserState(null);
     window.dispatchEvent(new Event('tokenChange'));
-    // Force a re-render of the app
-    window.location.reload();
   };
 
   const value = {

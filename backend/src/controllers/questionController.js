@@ -89,3 +89,51 @@ export const deleteQuestion = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Get question count by topic and difficulty
+export const getQuestionsCountByTopic = async (req, res) => {
+  try {
+    const counts = await Question.aggregate([
+      {
+        $group: {
+          _id: {
+            topic: "$topic",
+            difficulty: "$difficulty"
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.topic",
+          difficulties: {
+            $push: {
+              difficulty: "$_id.difficulty",
+              count: "$count"
+            }
+          },
+          total: { $sum: "$count" }
+        }
+      },
+      {
+        $project: {
+          topic: "$_id",
+          difficulties: 1,
+          total: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: counts
+    });
+  } catch (error) {
+    console.error("Error fetching question counts:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};

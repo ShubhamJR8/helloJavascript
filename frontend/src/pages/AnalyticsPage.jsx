@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { getQuizAnalytics } from '../apis/quizApi';
+import { getQuizAnalytics, getQuestionsCountByTopic } from '../apis/quizApi';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import RadialProgress from '../components/RadialProgress';
+import { topics, difficulties } from '../utils/constants';
 
 const DIFFICULTY_COLORS = {
   easy: '#3ec6e0',
@@ -10,21 +11,85 @@ const DIFFICULTY_COLORS = {
   hard: '#ff4c4c',
 };
 
+const TOPIC_COLORS = {
+  javascript: '#f7df1e',
+  typescript: '#3178c6',
+  react: '#61dafb',
+  angular: '#dd0031',
+  node: '#68a063'
+};
+
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to load
+
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
     const fetchAnalytics = async () => {
       try {
-        const response = await getQuizAnalytics();
-        if (response.success) {
-          setAnalytics(response.data);
+        const [analyticsResponse, questionsResponse] = await Promise.all([
+          getQuizAnalytics(),
+          getQuestionsCountByTopic()
+        ]);
+        
+        if (analyticsResponse.success && questionsResponse.success) {
+          // Initialize analytics for all topics
+          const processedAnalytics = topics.map(topicId => {
+            const topicAnalytics = analyticsResponse.data.find(a => a._id === topicId) || {
+              _id: topicId,
+              difficulties: [],
+              totalAttempts: 0,
+              totalCorrectAnswers: 0,
+              totalQuestions: 0
+            };
+
+            const topicQuestions = questionsResponse.data.find(q => q.topic === topicId);
+            
+            // Get difficulty-wise counts
+            const difficultyCounts = {};
+            const difficultyCorrectAnswers = {};
+            
+            // Initialize with 0 for all difficulties
+            difficulties.forEach(diff => {
+              difficultyCounts[diff] = 0;
+              difficultyCorrectAnswers[diff] = 0;
+            });
+            
+            if (topicQuestions) {
+              topicQuestions.difficulties.forEach(diff => {
+                difficultyCounts[diff.difficulty] = diff.count;
+              });
+            }
+
+            // Get correct answers from analytics
+            if (topicAnalytics.difficulties) {
+              topicAnalytics.difficulties.forEach(diff => {
+                difficultyCorrectAnswers[diff.difficulty] = diff.correctAnswers || 0;
+              });
+            }
+
+            return {
+              ...topicAnalytics,
+              name: topicId.charAt(0).toUpperCase() + topicId.slice(1),
+              color: TOPIC_COLORS[topicId],
+              difficultyCounts,
+              difficultyCorrectAnswers,
+              totalQuestions: topicQuestions ? topicQuestions.total : 0
+            };
+          });
+
+          setAnalytics(processedAnalytics);
         } else {
-          setError(response.message || "Failed to fetch analytics");
+          setError(analyticsResponse.message || questionsResponse.message || "Failed to fetch analytics");
         }
       } catch (err) {
         setError(err.message || "Failed to fetch analytics");
@@ -34,9 +99,9 @@ const AnalyticsPage = () => {
     };
 
     fetchAnalytics();
-  }, []);
+  }, [user, authLoading, navigate]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mx-auto"></div>
@@ -54,63 +119,60 @@ const AnalyticsPage = () => {
     );
   }
 
-  if (!analytics || analytics.length === 0) {
-    return (
-      <div className="mt-24 flex justify-center">
-        <div className="bg-gray-800 text-white px-6 py-4 rounded-lg shadow-lg text-lg">
-          No analytics data available yet. Complete some quizzes to see your performance.
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-wrap justify-center gap-10 min-h-screen bg-gray-900 pt-24 pb-10">
-      {analytics.map((topic) => {
-        const totalSolved = topic.correctAnswers || 0;
-        const totalQuestions = topic.totalQuestions || 0;
-        const totalAttempts = topic.totalAttempts || 0;
-        const attempting = (topic.totalAttempts - topic.completedAttempts) || 0;
-        const topicName = topic._id.charAt(0).toUpperCase() + topic._id.slice(1);
+    <div className="min-h-screen bg-gray-900 pt-24 pb-10 px-4">
+      <h1 className="text-3xl font-bold text-white text-center mb-8">Learning Analytics</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+        {analytics.map((topic) => {
+          const totalSolved = topic.totalCorrectAnswers || 0;
+          const totalQuestions = topic.totalQuestions || 0;
+          const totalAttempts = topic.totalAttempts || 0;
 
-        // Difficulty breakdown
-        const difficultyStats = [
-          { label: 'Easy', key: 'easy', color: DIFFICULTY_COLORS.easy },
-          { label: 'Med.', key: 'medium', color: DIFFICULTY_COLORS.medium },
-          { label: 'Hard', key: 'hard', color: DIFFICULTY_COLORS.hard },
-        ].map(diff => {
-          const found = (topic.difficulties || []).find(d => d.difficulty === diff.key) || {};
-          return {
-            ...diff,
-            solved: found.correctAnswers || 0,
-            total: found.totalQuestions || 0,
-          };
-        });
+          // Difficulty breakdown
+          const difficultyStats = difficulties.map(diff => ({
+            label: diff.charAt(0).toUpperCase() + diff.slice(1),
+            key: diff,
+            color: DIFFICULTY_COLORS[diff],
+            solved: topic.difficultyCorrectAnswers[diff] || 0,
+            total: topic.difficultyCounts[diff] || 0,
+          }));
 
-        return (
-          <div key={topic._id} className="flex flex-col md:flex-row items-center bg-[#23272f] rounded-2xl shadow-xl p-8 min-w-[320px] gap-8 relative">
-            {/* Donut Progress */}
-            <div className="relative flex flex-col items-center justify-center">
-              <RadialProgress value={totalSolved} max={totalQuestions} color="#3ec6e0" size={160} centerText={totalAttempts} />
-              <div className="absolute left-1/2 top-[72%] -translate-x-1/2 text-gray-400 text-md font-semibold whitespace-nowrap">
-                <span className="text-teal-400">{attempting}</span> Attempting
+          return (
+            <div key={topic._id} className="bg-[#23272f] rounded-2xl shadow-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white" style={{ color: topic.color }}>
+                  {topic.name}
+                </h2>
+                <div className="text-gray-400">
+                  {totalAttempts} Attempts
+                </div>
+              </div>
+              
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative">
+                  <RadialProgress 
+                    value={totalSolved} 
+                    max={totalQuestions} 
+                    color={topic.color} 
+                    size={140} 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {difficultyStats.map(diff => (
+                  <div key={diff.key} className="flex items-center justify-between bg-[#23272f] rounded-xl px-4 py-2 shadow-lg border border-gray-700">
+                    <span className="font-bold text-sm" style={{ color: diff.color }}>{diff.label}</span>
+                    <span className="font-mono text-white text-sm">
+                      {diff.solved}<span className="text-gray-400">/{diff.total}</span>
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-            {/* Difficulty Breakdown */}
-            <div className="flex flex-col gap-4 min-w-[180px]">
-              <div className="text-xl font-bold text-white mb-2 text-center md:text-left">{topicName}</div>
-              {difficultyStats.map(diff => (
-                <div key={diff.key} className="flex items-center justify-between bg-[#23272f] rounded-xl px-6 py-3 shadow-lg">
-                  <span className="font-bold text-lg" style={{ color: diff.color }}>{diff.label}</span>
-                  <span className="font-mono text-white text-lg">
-                    {diff.solved}<span className="text-gray-400">/{diff.total}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };
