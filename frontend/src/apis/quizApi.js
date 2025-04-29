@@ -153,3 +153,22 @@ export const getQuizAnalytics = async () => {
     };
   }
 };
+
+// Get Questions count by topic
+export const getQuestionsCountByTopic = async () => {
+  try {
+    // Create a temporary axios instance for questions endpoint
+    const questionsApi = axios.create({
+      baseURL: `${API_BASE_URL}/api/questions`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+    
+    const response = await questionsApi.get("/count");
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

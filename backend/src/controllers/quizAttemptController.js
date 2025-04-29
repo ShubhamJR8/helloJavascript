@@ -213,9 +213,10 @@ export const completeQuizAttempt = async (req, res) => {
 
     if (!wasMerged) {
       currentAttempt.questions = currentAttempt.questions.filter(q => q.isCorrect);
-      currentAttempt.totalQuestions = currentAttempt.questions.length;
+      // Ensure totalQuestions is at least 1
+      currentAttempt.totalQuestions = Math.max(1, currentAttempt.questions.length);
       currentAttempt.correctAnswers = currentAttempt.questions.length;
-      currentAttempt.totalScore = (currentAttempt.correctAnswers / (currentAttempt.totalQuestions || 1)) * 100;
+      currentAttempt.totalScore = (currentAttempt.correctAnswers / currentAttempt.totalQuestions) * 100;
     }
 
     await currentAttempt.save();
@@ -321,35 +322,37 @@ export const getQuizAnalytics = async (req, res) => {
       },
       {
         $group: {
-          _id: "$topic",
+          _id: {
+            topic: "$topic",
+            difficulty: "$difficulty"
+          },
           totalAttempts: { $sum: 1 },
-          averageScore: { $avg: "$totalScore" },
-          highestScore: { $max: "$totalScore" },
-          totalQuestions: { $sum: "$totalQuestions" },
           correctAnswers: { $sum: "$correctAnswers" },
-          totalTimeTaken: { $sum: { $subtract: ["$endTime", "$startTime"] } }
+          totalQuestions: { $sum: "$totalQuestions" }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.topic",
+          difficulties: {
+            $push: {
+              difficulty: "$_id.difficulty",
+              correctAnswers: "$correctAnswers",
+              totalQuestions: "$totalQuestions"
+            }
+          },
+          totalAttempts: { $sum: "$totalAttempts" },
+          totalCorrectAnswers: { $sum: "$correctAnswers" },
+          totalQuestions: { $sum: "$totalQuestions" }
         }
       },
       {
         $project: {
           _id: 1,
+          difficulties: 1,
           totalAttempts: 1,
-          averageScore: { $round: ["$averageScore", 2] },
-          highestScore: { $round: ["$highestScore", 2] },
-          totalQuestions: 1,
-          correctAnswers: 1,
-          successRate: {
-            $round: [
-              { $multiply: [{ $divide: ["$correctAnswers", "$totalQuestions"] }, 100] },
-              2
-            ]
-          },
-          averageTimePerQuestion: {
-            $round: [
-              { $divide: [{ $divide: ["$totalTimeTaken", 1000] }, "$totalQuestions"] },
-              2
-            ]
-          }
+          totalCorrectAnswers: 1,
+          totalQuestions: 1
         }
       }
     ]);

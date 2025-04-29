@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FaRocket, FaCode, FaBrain, FaLaptopCode, FaBriefcase, FaComments } from "react-icons/fa";
 import { startQuizAttempt } from "../apis/quizApi";
 import toast from "react-hot-toast";
+import { topics, difficulties } from "../utils/constants";
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -12,9 +13,6 @@ const HomePage = () => {
   const [showWarning, setShowWarning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const topics = ["javascript", "typescript", "react", "angular", "node"];
-  const difficulties = ["easy", "medium", "hard"];
 
   const handleStartQuiz = async (selectedTopic, selectedDifficulty) => {
     // Validate inputs
