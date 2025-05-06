@@ -177,7 +177,7 @@ const HomePage = () => {
       <motion.div className="mt-12 grid grid-cols-2 gap-6 w-3/4 max-w-4xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.5 }}>
         {[
           { text: "Daily JavaScript Challenge", icon: <FaRocket />, link: "/daily-javascript-challenge" },
-          { text: "Concept and Output Based MCQs", icon: <FaBrain />, link: "/concept-based-mcqs" },
+          { text: "Interview Asked Output Based MCQs", icon: <FaBrain />, link: "/concept-based-mcqs" },
           { text: "Machine Coding Questions", icon: <FaLaptopCode />, link: "/coding-questions" },
           { text: "JavaScript Concepts Explained Visually", icon: <FaCode />, link: "/javascript-concepts-visual" },
           { text: "Mock Interviews & Feedback Report", icon: <FaComments />, link: "/mock-interviews" },

@@ -28,6 +28,11 @@ const QuestionSchema = new mongoose.Schema({
     required: [true, "Difficulty level is required"],
     index: true
   },
+  interviewImportant: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   difficultyScore: { 
     type: Number, 
     min: [1, "Difficulty score must be at least 1"],
