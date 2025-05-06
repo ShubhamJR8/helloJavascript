@@ -1,27 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import HomePage from './pages/HomePage';
-import QuizPage from './pages/QuizPage';
-import CodingQuestionPage from './pages/CodingQuestionPage';
-import ResultPage from './pages/ResultPage';
-import MockInterviews from './pages/MockInterviews';
-import JobListings from './components/JobListings';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import UserProfilePage from './pages/UserProfilePage';
-import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
-import AnalyticsPage from './pages/AnalyticsPage';
-import UserProfile from './pages/UserProfile';
-import { checkAuth } from './utils/auth';
+import ProtectedRoute from './components/ProtectedRoute';
 import UnauthorizedAccess from './components/UnauthorizedAccess';
 import { Toaster, toast } from 'react-hot-toast';
-import DailyJavaScriptChallenge from "./pages/DailyJavaScriptChallenge";
-import ConceptBasedMCQs from "./pages/ConceptBasedMCQs";
-import CodingQuestions from "./pages/CodingQuestions";
-import JavaScriptConceptsVisual from "./pages/JavaScriptConceptsVisual";
-import Blogs from "./pages/Blogs";
+import { checkAuth } from './utils/auth';
+
+// Lazy load components
+const HomePage = lazy(() => import('./pages/HomePage'));
+const QuizPage = lazy(() => import('./pages/QuizPage'));
+const CodingQuestionPage = lazy(() => import('./pages/CodingQuestionPage'));
+const ResultPage = lazy(() => import('./pages/ResultPage'));
+const MockInterviews = lazy(() => import('./pages/MockInterviews'));
+const JobListings = lazy(() => import('./components/JobListings'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
+const DailyJavaScriptChallenge = lazy(() => import('./pages/DailyJavaScriptChallenge'));
+const ConceptBasedMCQs = lazy(() => import('./pages/ConceptBasedMCQs'));
+const CodingQuestions = lazy(() => import('./pages/CodingQuestions'));
+const JavaScriptConceptsVisual = lazy(() => import('./pages/JavaScriptConceptsVisual'));
+const Blogs = lazy(() => import('./pages/Blogs'));
 
 const NavigationGuard = ({ children }) => {
   const location = useLocation();
@@ -120,76 +122,85 @@ const AppContent = () => {
       <div className="container mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
           <NavigationGuard>
-            <Routes location={location} key={location.pathname}>
-              <Route path="/" element={<HomePage />} />
-              <Route
-                path="/login"
-                element={
-                  isAuthenticated ? (
-                    <Navigate to="/" replace />
-                  ) : (
-                    <LoginPage setIsAuthenticated={setIsAuthenticated} />
-                  )
-                }
-              />
-              <Route
-                path="/register"
-                element={
-                  isAuthenticated ? (
-                    <Navigate to="/" replace />
-                  ) : (
-                    <RegisterPage setIsAuthenticated={setIsAuthenticated} />
-                  )
-                }
-              />
-              <Route
-                path="/quiz/:topic/:difficulty"
-                element={
-                  <ProtectedRoute>
-                    <QuizPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/result/:attemptId"
-                element={
-                  <ProtectedRoute>
-                    <ResultPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <ProtectedRoute>
-                    <AnalyticsPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/coding-question/:topic" element={<CodingQuestionPage />} />
-              <Route path="/mock-interviews" element={<MockInterviews />} />
-              <Route path="/job-listings" element={<JobListings />} />
-              <Route path="/daily-javascript-challenge" element={<DailyJavaScriptChallenge />} />
-              <Route path="/concept-based-mcqs" element={<ConceptBasedMCQs />} />
-              <Route path="/coding-questions" element={<CodingQuestions />} />
-              <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
-              <Route path="/blogs" element={<Blogs />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes location={location} key={location.pathname}>
+                <Route path="/" element={<HomePage />} />
+                <Route
+                  path="/login"
+                  element={
+                    isAuthenticated ? (
+                      <Navigate to="/" replace />
+                    ) : (
+                      <LoginPage setIsAuthenticated={setIsAuthenticated} />
+                    )
+                  }
+                />
+                <Route
+                  path="/register"
+                  element={
+                    isAuthenticated ? (
+                      <Navigate to="/" replace />
+                    ) : (
+                      <RegisterPage setIsAuthenticated={setIsAuthenticated} />
+                    )
+                  }
+                />
+                <Route
+                  path="/quiz/:topic/:difficulty"
+                  element={
+                    <ProtectedRoute>
+                      <QuizPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/result/:attemptId"
+                  element={
+                    <ProtectedRoute>
+                      <ResultPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <AnalyticsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <UserProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/coding-question/:topic" element={<CodingQuestionPage />} />
+                <Route path="/mock-interviews" element={<MockInterviews />} />
+                <Route path="/job-listings" element={<JobListings />} />
+                <Route path="/daily-javascript-challenge" element={<DailyJavaScriptChallenge />} />
+                <Route path="/concept-based-mcqs" element={<ConceptBasedMCQs />} />
+                <Route path="/coding-questions" element={<CodingQuestions />} />
+                <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
+                <Route path="/blogs" element={<Blogs />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </NavigationGuard>
         </AnimatePresence>
       </div>
     </div>
   );
 };
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+  </div>
+);
 
 const App = () => {
   return (
