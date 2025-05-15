@@ -7,11 +7,81 @@ import UnauthorizedAccess from './components/UnauthorizedAccess';
 import { Toaster, toast } from 'react-hot-toast';
 import { checkAuth } from './utils/auth';
 
+// Error boundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="bg-gray-800 p-8 rounded-lg text-center">
+            <h2 className="text-xl font-semibold text-red-400 mb-4">Something went wrong</h2>
+            <p className="text-gray-300 mb-4">Please try refreshing the page</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+  </div>
+);
+
 // Lazy load components
 const HomePage = lazy(() => import('./pages/HomePage'));
 const QuizPage = lazy(() => import('./pages/QuizPage'));
 const CodingQuestionPage = lazy(() => import('./pages/CodingQuestionPage'));
-const ResultPage = lazy(() => import('./pages/ResultPage'));
+const ResultPage = lazy(() => {
+  console.log('App - Attempting to load ResultPage');
+  return import('./pages/ResultPage')
+    .then(module => {
+      console.log('App - ResultPage loaded successfully');
+      return module;
+    })
+    .catch(error => {
+      console.error('App - Error loading ResultPage:', error);
+      return {
+        default: () => (
+          <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+            <div className="bg-gray-800 p-8 rounded-lg text-center">
+              <h2 className="text-xl font-semibold text-red-400 mb-4">Error Loading Results</h2>
+              <p className="text-gray-300 mb-4">Unable to load the results page. Please try again.</p>
+              <button
+                onClick={() => window.location.href = '/'}
+                className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors"
+              >
+                Return to Home
+              </button>
+            </div>
+          </div>
+        )
+      };
+    });
+});
 const MockInterviews = lazy(() => import('./pages/MockInterviews'));
 const JobListings = lazy(() => import('./components/JobListings'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -154,11 +224,29 @@ const AppContent = () => {
                   }
                 />
                 <Route
+                  path="/quiz/:tag/mixed"
+                  element={<QuizPage />}
+                />
+                <Route
                   path="/result/:attemptId"
                   element={
                     <ProtectedRoute>
-                      <ResultPage />
+                      <ErrorBoundary>
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <ResultPage />
+                        </Suspense>
+                      </ErrorBoundary>
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/result/tag/:tag"
+                  element={
+                    <ErrorBoundary>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <ResultPage />
+                      </Suspense>
+                    </ErrorBoundary>
                   }
                 />
                 <Route
@@ -194,13 +282,6 @@ const AppContent = () => {
     </div>
   );
 };
-
-// Loading component
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-  </div>
-);
 
 const App = () => {
   return (
