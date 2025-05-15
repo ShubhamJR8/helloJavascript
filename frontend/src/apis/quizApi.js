@@ -125,10 +125,36 @@ export const getQuizAttemptDetails = async (attemptId) => {
 
 export const fetchQuestionsByTopic = async (topic) => {
   try {
-    const response = await quizApi.get(`/questions?topic=${topic}`);
-    return response.data;
+    // Create a temporary axios instance for questions endpoint
+    const questionsApi = axios.create({
+      baseURL: `${API_BASE_URL}/api/questions`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+
+    // If topic is 'all', fetch all questions without any query params
+    const url = topic === 'all' ? '' : `?topic=${topic}`;
+    const response = await questionsApi.get(url);
+    
+    console.log('Questions API response:', response.data);
+    
+    // Check if the response has the expected structure
+    if (!response.data || !response.data.questions) {
+      throw new Error('Invalid response structure from API');
+    }
+    
+    return {
+      success: true,
+      questions: response.data.questions
+    };
   } catch (error) {
-    throw error;
+    console.error('Error fetching questions:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message || 'Failed to fetch questions'
+    };
   }
 };
 

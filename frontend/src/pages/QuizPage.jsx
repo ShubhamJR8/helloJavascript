@@ -28,11 +28,18 @@ const QuizPage = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [isShuffled, setIsShuffled] = useState(false);
   const [mastered, setMastered] = useState(false);
+  const [isTagBased, setIsTagBased] = useState(false);
   const timerRef = useRef(null);
   const autoSaveTimerRef = useRef(null);
 
-  // Validate quiz parameters
+  // Validate quiz parameters for regular quizzes
   const validateQuizParams = () => {
+    // For tag-based, category-based, or topic-based quizzes, we don't need to validate topic and difficulty
+    if (location.state?.isTagBased || location.state?.isCategoryBased || location.state?.isTopicBased) {
+      return;
+    }
+
+    // For regular quizzes, validate topic and difficulty
     if (!topic) {
       throw new Error("Topic is required");
     }
@@ -43,15 +50,52 @@ const QuizPage = () => {
 
   // Prevent direct access without proper state
   useEffect(() => {
+    console.log('QuizPage - Location State:', location.state);
+    console.log('QuizPage - Params:', { topic, difficulty });
+    
+    // For tag-based, category-based, or topic-based quizzes, we only need to check for questions
+    if (location.state?.isTagBased || location.state?.isCategoryBased || location.state?.isTopicBased || difficulty === 'mixed') {
+      console.log('QuizPage - Handling tag/category/topic-based quiz');
+      if (!location.state?.questions || !Array.isArray(location.state?.questions)) {
+        console.error('QuizPage - Invalid questions for tag/category/topic-based quiz');
+        toast.error("Invalid quiz access. Please start a new quiz.");
+        navigate('/');
+        return;
+      }
+
+      try {
+        setIsTagBased(location.state.isTagBased || location.state.isCategoryBased || location.state.isTopicBased);
+        setQuestions(location.state.questions);
+        
+        // Initialize times for all questions
+        const initialTimes = location.state.questions.reduce((acc, q, index) => {
+          acc[index] = q.timeLimit || 30;
+          return acc;
+        }, {});
+        
+        setQuestionTimes(initialTimes);
+        setLoading(false);
+        console.log('QuizPage - Successfully initialized tag/category/topic-based quiz');
+      } catch (error) {
+        console.error('QuizPage - Error initializing tag/category/topic-based quiz:', error);
+        toast.error('Failed to initialize quiz. Please try again.');
+        navigate('/');
+      }
+      return;
+    }
+
+    // For regular quizzes, check for attemptId or data
     if (!location.state?.attemptId && !location.state?.data && !location.state?.mastered) {
+      console.error('QuizPage - Invalid state for regular quiz');
       toast.error("Invalid quiz access. Please start a new quiz.");
       navigate('/');
+      return;
     }
-  }, [location.state, navigate]);
+  }, [location.state, navigate, topic, difficulty]);
 
-  // Auto-save progress
+  // Auto-save progress for regular quizzes
   const autoSaveProgress = () => {
-    if (attemptId && questions.length > 0) {
+    if (!isTagBased && attemptId && questions.length > 0) {
       const progress = {
         attemptId,
         currentIndex: currentQuestion,
@@ -63,15 +107,17 @@ const QuizPage = () => {
     }
   };
 
-  // Load saved progress
+  // Load saved progress for regular quizzes
   const loadSavedProgress = (savedAttemptId) => {
-    const savedProgress = localStorage.getItem(`quiz_progress_${savedAttemptId}`);
-    if (savedProgress) {
-      const progress = JSON.parse(savedProgress);
-      setCurrentQuestion(progress.currentIndex);
-      setAnswers(progress.selectedAnswers);
-      setQuestionTimes(progress.timeLeft);
-      return true;
+    if (!isTagBased) {
+      const savedProgress = localStorage.getItem(`quiz_progress_${savedAttemptId}`);
+      if (savedProgress) {
+        const progress = JSON.parse(savedProgress);
+        setCurrentQuestion(progress.currentIndex);
+        setAnswers(progress.selectedAnswers);
+        setQuestionTimes(progress.timeLeft);
+        return true;
+      }
     }
     return false;
   };
@@ -92,14 +138,35 @@ const QuizPage = () => {
     throw lastError;
   };
 
+  // Initialize quiz state
   useEffect(() => {
-    const fetchAttemptAndQuestions = async () => {
+    const initializeQuiz = async () => {
       try {
         setLoading(true);
         setError(null);
-        validateQuizParams();
 
-        // Get the attempt ID from location state or create a new attempt
+        // For tag-based, category-based, or topic-based quizzes, initialize immediately
+        if (location.state?.isTagBased || location.state?.isCategoryBased || location.state?.isTopicBased) {
+          console.log('QuizPage - Initializing tag/category/topic-based quiz');
+          const questions = location.state.questions;
+          
+          if (!questions || !Array.isArray(questions) || questions.length === 0) {
+            throw new Error("No questions available for this tag/category/topic");
+          }
+
+          // Initialize times for all questions
+          const initialTimes = questions.reduce((acc, q, index) => {
+            acc[index] = q.timeLimit || 30;
+            return acc;
+          }, {});
+
+          setQuestions(questions);
+          setQuestionTimes(initialTimes);
+          setLoading(false);
+          return;
+        }
+
+        // Regular quiz flow
         let attemptId = location.state?.attemptId;
         let attemptData = location.state?.data;
         
@@ -184,22 +251,21 @@ const QuizPage = () => {
         }, {});
         setQuestionTimes(initialTimes);
 
-        // Set up auto-save
-        autoSaveTimerRef.current = setInterval(autoSaveProgress, 30000); // Auto-save every 30 seconds
+        // Set up auto-save for regular quizzes
+        if (!isTagBased) {
+          autoSaveTimerRef.current = setInterval(autoSaveProgress, 30000); // Auto-save every 30 seconds
+        }
 
       } catch (error) {
-        console.error("Error in fetchAttemptAndQuestions:", error);
-        toast.error(error.message || "Failed to load quiz");
-        setError(error.message || "Failed to load quiz");
-        if (retryCount < MAX_RETRY_ATTEMPTS) {
-          setRetryCount(prev => prev + 1);
-        }
+        console.error("Error initializing quiz:", error);
+        setError(error.message);
+        toast.error(error.message || "Failed to initialize quiz");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAttemptAndQuestions();
+    initializeQuiz();
 
     // Cleanup
     return () => {
@@ -210,7 +276,7 @@ const QuizPage = () => {
         clearTimeout(timerRef.current);
       }
     };
-  }, [location.state, topic, difficulty, retryCount]);
+  }, [location.state]);
 
   useEffect(() => {
     // Clear any existing timer
@@ -278,21 +344,52 @@ const QuizPage = () => {
         };
       });
 
-      const response = await completeQuizAttempt(attemptId, validatedAnswers);
-      
-      if (response.success) {
-        navigate(`/result/${attemptId}`, {
-          state: {
-            totalScore: response.data.totalScore,
-            correctAnswers: response.data.correctAnswers,
-            attemptId: attemptId,
-            topic: topic,
-            difficulty: difficulty
-          },
+      if (isTagBased || location.state?.isCategoryBased || location.state?.isTopicBased) {
+        // For tag/category/topic-based quizzes, calculate results locally
+        const correctAnswers = validatedAnswers.filter(answer => {
+          const question = questions.find(q => q.id === answer.questionId);
+          return question && answer.selectedOption === question.correctAnswer;
+        }).length;
+
+        const resultState = {
+          totalScore: (correctAnswers / questions.length) * 100,
+          correctAnswers,
+          totalQuestions: questions.length,
+          tag: location.state.tag || location.state.category || location.state.topic,
+          isTagBased: location.state.isTagBased,
+          isCategoryBased: location.state.isCategoryBased,
+          isTopicBased: location.state.isTopicBased,
+          questions: questions.map((q, index) => ({
+            ...q,
+            userAnswer: validatedAnswers[index]?.selectedOption
+          }))
+        };
+
+        console.log('QuizPage - Navigating to tag/category/topic-based result with state:', resultState);
+        navigate(`/result/tag/${location.state.tag || location.state.category || location.state.topic}`, {
+          state: resultState,
+          replace: true
         });
       } else {
-        console.error('Quiz submission failed:', response.errors);
-        setError(response.message || 'Failed to complete quiz attempt');
+        // Regular quiz submission
+        const response = await completeQuizAttempt(attemptId, validatedAnswers);
+        
+        if (response.success) {
+          console.log('QuizPage - Navigating to regular result');
+          navigate(`/result/${attemptId}`, {
+            state: {
+              totalScore: response.data.totalScore,
+              correctAnswers: response.data.correctAnswers,
+              attemptId: attemptId,
+              topic: topic,
+              difficulty: difficulty
+            },
+            replace: true
+          });
+        } else {
+          console.error('Quiz submission failed:', response.errors);
+          setError(response.message || 'Failed to complete quiz attempt');
+        }
       }
     } catch (err) {
       console.error('Error submitting quiz:', err);
