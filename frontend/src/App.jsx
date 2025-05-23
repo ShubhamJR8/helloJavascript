@@ -93,6 +93,7 @@ const DailyJavaScriptChallenge = lazy(() => import('./pages/DailyJavaScriptChall
 const ConceptBasedMCQs = lazy(() => import('./pages/ConceptBasedMCQs'));
 const CodingQuestions = lazy(() => import('./pages/CodingQuestions'));
 const JavaScriptConceptsVisual = lazy(() => import('./pages/JavaScriptConceptsVisual'));
+const EventLoop = lazy(() => import('./pages/concepts/EventLoop'));
 const Blogs = lazy(() => import('./pages/Blogs'));
 
 const NavigationGuard = ({ children }) => {
@@ -272,6 +273,7 @@ const AppContent = () => {
                 <Route path="/concept-based-mcqs" element={<ConceptBasedMCQs />} />
                 <Route path="/coding-questions" element={<CodingQuestions />} />
                 <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
+                <Route path="/concepts/event-loop" element={<EventLoop />} />
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

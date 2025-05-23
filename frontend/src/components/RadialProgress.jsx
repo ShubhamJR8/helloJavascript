@@ -7,7 +7,7 @@ const RadialProgress = ({ value, max, color = '#00bcd4', size = 120, centerText 
   const arcLength = 270; // Degrees for visible arc
   const circumference = 2 * Math.PI * radius;
   const visibleCircumference = (arcLength / 360) * circumference;
-  const progress = visibleCircumference - (normalizedValue / max) * visibleCircumference;
+  const progress = max === 0 ? visibleCircumference : visibleCircumference - (normalizedValue / max) * visibleCircumference;
 
   const rotate = 135; // rotate the arc to start at bottom-left
 
