@@ -1,19 +1,33 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { sendMetric } from "../utils/cloudwatch.js";
+import { logger } from "../utils/logger.js";
 
 // @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = async (req, res) => {
   try {
-    console.log('=== Registration Attempt ===');
-    console.log('Request body:', { ...req.body, password: '***' });
+    // console.log('=== Registration Attempt ===');
+    // console.log('Request body:', { ...req.body, password: '***' });
+    
     
     const { name, email, password } = req.body;
 
     // Validate input
     if (!name || !email || !password) {
+      logger.warn('Registration attempt with missing fields', {
+        name,
+        email,
+        password: '***' // Mask password in logs
+      });
+
+      sendMetric('UserRegistrationAttempt', 1, 'Count', [
+        { Name: 'Status', Value: 'Failed' },
+        { Name: 'Reason', Value: 'MissingFields' }
+      ]);
+
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields'
@@ -71,6 +85,16 @@ export const loginUser = async (req, res) => {
 
     // Validate input
     if (!email || !password) {
+      logger.warn('Login attempt with missing fields', {
+        email,
+        password: '***' // Mask password in logs
+      });
+
+      sendMetric('UserLoginAttempt', 1, 'Count', [
+        { Name: 'Status', Value: 'Failed' },
+        { Name: 'Reason', Value: 'MissingFields' }
+      ]);
+
       return res.status(400).json({
         success: false,
         message: 'Please provide email and password'
@@ -101,6 +125,8 @@ export const loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
+
+    sendMetric('UserLoginSuccess', 1, 'Count');
 
     res.status(200).json({
       success: true,
@@ -139,7 +165,7 @@ export const getUserProfile = async (req, res) => {
       data: user
     });
   } catch (error) {
-    console.error('Get profile error:', error);
+    logger.error('Get profile error:', error);
     res.status(500).json({
       success: false,
       message: "Error fetching profile"
@@ -174,7 +200,7 @@ export const updateUserProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    logger.error('Update profile error:', error);
     res.status(500).json({
       success: false,
       message: "Error updating profile"
@@ -216,5 +242,3 @@ export const getUserById = async (req, res) => {
     res.status(500).json({ message: "Error fetching user", error });
   }
 };
-
-

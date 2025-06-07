@@ -10,6 +10,11 @@ import quizAttemptRoutes from './routes/quizAttemptRoutes.js';
 
 const app = express();
 
+app.use((req, res, next) => {
+  sendMetric('RequestCount', 1, 'Count', [{ Name: 'Endpoint', Value: req.originalUrl }]);
+  next();
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -25,7 +30,15 @@ app.use('/api/quiz-attempts', quizAttemptRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error('Unhandled error:', {
+    message: err.message,
+    stack: err.stack,
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+  
+  sendMetric('UnhandledError', 1, 'Count');
+
   res.status(500).json({
     success: false,
     error: 'Something went wrong!'

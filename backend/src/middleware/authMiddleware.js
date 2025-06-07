@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { sendMetric } from '../utils/cloudwatch.js';
+import { logger } from '../utils/logger.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -11,6 +13,13 @@ export const protect = async (req, res, next) => {
     }
 
     if (!token) {
+      logger.warn('Unauthorized access attempt', {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
+      sendMetric('UnauthorizedAccessAttempt', 1, 'Count');
+
       return res.status(401).json({ message: 'Not authorized, please login' });
     }
 
@@ -28,9 +37,22 @@ export const protect = async (req, res, next) => {
       req.user = user;
       next();
     } catch (error) {
+      logger.error('Token verification failed', {
+        error: error.message,
+        token,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+      sendMetric('TokenVerificationFailed', 1, 'Count');
       return res.status(401).json({ message: 'Not authorized, token failed' });
     }
   } catch (error) {
+    logger.error('Auth middleware error', {
+      error: error.message,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+    sendMetric('AuthMiddlewareError', 1, 'Count');
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 }; 
