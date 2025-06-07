@@ -1,0 +1,8 @@
+{
+  "all": true,                       
+  "extension": [".js", ".mjs"],      
+  "include": ["src/**/*.js"],        
+  "exclude": ["test/**/*.js"],       
+  "reporter": ["text", "lcov", "html"],
+  "cache": true
+}
