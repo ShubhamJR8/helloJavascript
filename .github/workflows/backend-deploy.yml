@@ -27,7 +27,7 @@ jobs:
         AWS_REGION: ${{ secrets.AWS_REGION }}
         AWS_ROLE_NAME: ${{ secrets.AWS_ROLE_NAME }}
       with:
-        role-to-assume: arn:aws:iam::$AWS_ACCOUNT_ID:role/$AWS_ROLE_NAME
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
         aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Set up Node.js
