@@ -4,11 +4,13 @@ import { CloudWatchLogsClient, PutLogEventsCommand } from '@aws-sdk/client-cloud
 
 dotenv.config();
 
-if (!process.env.AWS_REGION) {
+const AWS_REGION = process.env.AWS_REGION || "ap-south-1";
+
+if (AWS_REGION.length === 0) {
   throw new Error('AWS_REGION or CLOUDWATCH_LOG_STREAM environment variable is not set');
 }
 
-const cloudwatchLogs = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
+const cloudwatchLogs = new CloudWatchLogsClient({ region: AWS_REGION });
 
 const sendLogToCloudWatch = async (logGroupName, logStreamName, message) => {
   const params = {

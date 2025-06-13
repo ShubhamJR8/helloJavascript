@@ -3,11 +3,13 @@ import { CloudWatchClient, PutMetricDataCommand }  from "@aws-sdk/client-cloudwa
 
 dotenv.config();
 
-if (!process.env.AWS_REGION) {
+const AWS_REGION = process.env.AWS_REGION || "ap-south-1";
+
+if (AWS_REGION.length === 0) {
   throw new Error('AWS_REGION environment variable is not set');
 }
 
-const cloudwatch = new CloudWatchClient({ region: process.env.AWS_REGION });
+const cloudwatch = new CloudWatchClient({ region: AWS_REGION });
 
 const sendMetric = async (metricName, value, unit = 'Count', dimensions = []) => {
   const params = {
