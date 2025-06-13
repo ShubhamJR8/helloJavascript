@@ -22,6 +22,11 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Routes
 app.use('/api/jobs', jobRoutes);
 app.use('/api/auth', authRoutes);
