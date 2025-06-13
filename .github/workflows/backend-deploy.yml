@@ -49,6 +49,9 @@ jobs:
         EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
       run: |
         zip -r app.zip .
+
+        aws s3 cp app.zip s3://${{ secrets.S3_BUCKET }}/app.zip
+        
         aws elasticbeanstalk create-application-version \
           --application-name ${{ secrets.EB_APP_NAME }} \
           --version-label github-${{ github.sha }} \
