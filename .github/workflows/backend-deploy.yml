@@ -48,7 +48,9 @@ jobs:
         S3_BUCKET: ${{ secrets.S3_BUCKET }}
         EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
       run: |
-        zip -r app.zip .
+        cd backend
+        zip -r ../app.zip ./*
+        cd ..
 
         aws s3 cp app.zip s3://${{ secrets.S3_BUCKET }}/app.zip
         
