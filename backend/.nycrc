@@ -3,6 +3,6 @@
   "extension": [".js", ".mjs"],      
   "include": ["src/**/*.js"],        
   "exclude": ["test/**/*.js"],       
-  "reporter": ["text", "lcov", "html"],
+  "reporter": ["text", "text-summary", "lcov", "html"],
   "cache": true
 }
