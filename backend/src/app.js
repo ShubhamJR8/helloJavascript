@@ -9,18 +9,23 @@ import submissionRoutes from './routes/submissionRoutes.js';
 import quizAttemptRoutes from './routes/quizAttemptRoutes.js';
 import { sendMetric } from './utils/cloudwatch.js';
 import { logger } from './utils/logger.js';
+import limiter from './middleware/rateLimiter.js';
+import botScanLimiter from './middleware/botScanLimiter.js';
 
 const app = express();
 
-app.use((req, res, next) => {
-  sendMetric('RequestCount', 1, 'Count', [{ Name: 'Endpoint', Value: req.originalUrl }]);
-  next();
-});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+app.use(limiter);
+app.use(botScanLimiter);
+
+app.use((req, res, next) => {
+  sendMetric('RequestCount', 1, 'Count', [{ Name: 'Endpoint', Value: req.originalUrl }]);
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
