@@ -152,44 +152,51 @@ const ResultPage = () => {
         >
           <h1 className="text-3xl font-bold text-teal-400 mb-6">Quiz Results</h1>
 
-          <div className="space-y-6">
-            <div className="bg-gray-700/50 p-6 rounded-lg">
-              <h2 className="text-xl font-semibold text-teal-300 mb-4">Summary</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-600/50 p-4 rounded-lg">
-                  <p className="text-gray-400">Total Score</p>
-                  <p className="text-2xl font-bold text-teal-400">{result.totalScore.toFixed(1)}%</p>
-                </div>
-                <div className="bg-gray-600/50 p-4 rounded-lg">
-                  <p className="text-gray-400">Correct Answers</p>
-                  <p className="text-2xl font-bold text-teal-400">{result.correctAnswers}/{result.totalQuestions}</p>
-                </div>
-                <div className="bg-gray-600/50 p-4 rounded-lg">
-                  <p className="text-gray-400">Quiz Type</p>
-                  <p className="text-2xl font-bold text-teal-400">
-                    {location.state?.isTagBased ? 'Tag-based Quiz' : location.state?.isCategoryBased ? 'Category-based Quiz' : 'Regular Quiz'}
-                  </p>
-                </div>
-              </div>
+          {!result || !result.totalScore || !result.correctAnswers || !result.totalQuestions ? (
+            <div className="text-center text-white">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mx-auto"></div>
+              <p className="mt-4">Loading results...</p>
             </div>
-
-            {result.questions && (
+          ) : (
+            <div className="space-y-6">
               <div className="bg-gray-700/50 p-6 rounded-lg">
-                <h2 className="text-xl font-semibold text-teal-300 mb-4">Question Review</h2>
-                <div className="space-y-4">
-                  {result.questions.map((question, index) => (
-                    <div key={index} className="bg-gray-600/50 p-4 rounded-lg">
-                      <p className="text-gray-300 mb-2">{question.question}</p>
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-400">Your Answer: {question.userAnswer || 'Not answered'}</p>
-                        <p className="text-sm text-gray-400">Correct Answer: {question.correctAnswer}</p>
-                      </div>
-                    </div>
-                  ))}
+                <h2 className="text-xl font-semibold text-teal-300 mb-4">Summary</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-600/50 p-4 rounded-lg">
+                    <p className="text-gray-400">Total Score</p>
+                    <p className="text-2xl font-bold text-teal-400">{result.totalScore.toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-gray-600/50 p-4 rounded-lg">
+                    <p className="text-gray-400">Correct Answers</p>
+                    <p className="text-2xl font-bold text-teal-400">{result.correctAnswers}/{result.totalQuestions}</p>
+                  </div>
+                  <div className="bg-gray-600/50 p-4 rounded-lg">
+                    <p className="text-gray-400">Quiz Type</p>
+                    <p className="text-2xl font-bold text-teal-400">
+                      {location.state?.isTagBased ? 'Tag-based Quiz' : location.state?.isCategoryBased ? 'Category-based Quiz' : 'Regular Quiz'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+
+              {result.questions && result.questions.length > 0 && (
+                <div className="bg-gray-700/50 p-6 rounded-lg">
+                  <h2 className="text-xl font-semibold text-teal-300 mb-4">Question Review</h2>
+                  <div className="space-y-4">
+                    {result.questions.map((question, index) => (
+                      <div key={index} className="bg-gray-600/50 p-4 rounded-lg">
+                        <p className="text-gray-300 mb-2">{question.question}</p>
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-400">Your Answer: {question.userAnswer || 'Not answered'}</p>
+                          <p className="text-sm text-gray-400">Correct Answer: {question.correctAnswer}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-8 flex justify-center space-x-4">
             <button

@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import CodeInput from "./EventLoop/components/CodeInput";
-import Visualizer from "./EventLoop/components/Visualizer";
-import ControlPanel from "./EventLoop/components/ControlPanel";
+import CodeInput from "../../components/EventLoop/CodeInput";
+import Visualizer from "../../components/EventLoop/Visualizer";
+import ControlPanel from "../../components/EventLoop/ControlPanel";
 import * as acorn from 'acorn';
 
 const DEFAULT_CODE = `console.log("Start");

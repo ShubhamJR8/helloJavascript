@@ -16,6 +16,10 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Routes
+app.get('/', (req, res) => {
+  res.send('Welcome to the HelloJavascript');
+});
+
 app.use('/api/jobs', jobRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
