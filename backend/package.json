@@ -5,22 +5,32 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon server.js",
+    "test": "mocha --exit",
+    "coverage": "nyc mocha --exit"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.350.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.350.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.11.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "winston": "^3.10.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "@esm-bundle/chai": "^4.3.4-fix.0",
+    "mocha": "^11.5.0",
+    "nodemon": "^3.1.9",
+    "nyc": "^17.1.0",
+    "supertest": "^7.1.1"
   }
 }

@@ -1,0 +1,68 @@
+name: Deploy Backend to AWS Elastic Beanstalk
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+    branches:
+      - main
+
+permissions:
+  id-token: write         # grant permission to fetch OIDC token
+  contents: read      
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to Elastic Beanstalk
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials via OIDC
+      uses: aws-actions/configure-aws-credentials@v3
+      env:
+        AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_ROLE_NAME: ${{ secrets.AWS_ROLE_NAME }}
+      with:
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install Dependencies
+      working-directory: backend
+      run: npm install
+
+    - name: Run Tests
+      working-directory: backend
+      run: npm test
+
+    - name: Create and upload Beanstalk app version
+      env:
+        S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
+      run: |
+        cd backend
+        zip -r ../app.zip ./*
+        cd ..
+
+        aws s3 cp app.zip s3://${{ secrets.S3_BUCKET }}/app.zip
+        
+        aws elasticbeanstalk create-application-version \
+          --application-name ${{ secrets.EB_APP_NAME }} \
+          --version-label github-${{ github.sha }} \
+          --source-bundle S3Bucket=${{ secrets.S3_BUCKET }},S3Key="app.zip"
+
+    - name: Deploy to Elastic Beanstalk
+      env:
+        EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
+      run: |
+        aws elasticbeanstalk update-environment \
+          --environment-name ${{ secrets.EB_ENV_NAME }} \
+          --version-label github-${{ github.sha }}
