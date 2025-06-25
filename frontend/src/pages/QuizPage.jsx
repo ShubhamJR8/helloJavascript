@@ -371,25 +371,43 @@ const QuizPage = () => {
           replace: true
         });
       } else {
-        // Regular quiz submission
-        const response = await completeQuizAttempt(attemptId, validatedAnswers);
-        
-        if (response.success) {
-          console.log('QuizPage - Navigating to regular result');
-          navigate(`/result/${attemptId}`, {
-            state: {
-              totalScore: response.data.totalScore,
-              correctAnswers: response.data.correctAnswers,
-              attemptId: attemptId,
-              topic: topic,
-              difficulty: difficulty
-            },
-            replace: true
-          });
-        } else {
-          console.error('Quiz submission failed:', response.errors);
-          setError(response.message || 'Failed to complete quiz attempt');
-        }
+        // Regular quiz submission - Calculate results locally first
+        const correctAnswers = validatedAnswers.filter(answer => {
+          const question = questions.find(q => q.id === answer.questionId);
+          return question && answer.selectedOption === question.correctAnswer;
+        }).length;
+
+        const totalScore = (correctAnswers / questions.length) * 100;
+
+        // Navigate to result page immediately with local data
+        console.log('QuizPage - Navigating to regular result with local data');
+        navigate(`/result/${attemptId}`, {
+          state: {
+            totalScore: totalScore,
+            correctAnswers: correctAnswers,
+            totalQuestions: questions.length,
+            attemptId: attemptId,
+            topic: topic,
+            difficulty: difficulty,
+            questions: questions.map((q, index) => ({
+              ...q,
+              userAnswer: validatedAnswers[index]?.selectedOption,
+              correctAnswer: q.correctAnswer
+            }))
+          },
+          replace: true
+        });
+
+        // Send backend request in background (don't wait for response)
+        completeQuizAttempt(attemptId, validatedAnswers).then(response => {
+          if (response.success) {
+            console.log('QuizPage - Backend processing completed successfully');
+          } else {
+            console.error('QuizPage - Backend processing failed:', response.message);
+          }
+        }).catch(err => {
+          console.error('QuizPage - Backend processing error:', err);
+        });
       }
     } catch (err) {
       console.error('Error submitting quiz:', err);

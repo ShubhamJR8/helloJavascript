@@ -39,21 +39,38 @@ const ResultPage = () => {
           return;
         }
 
-        // Regular quiz result
+        // Regular quiz result - Use location state data instead of fetching
+        if (location.state?.totalScore !== undefined) {
+          console.log('ResultPage - Using location state data for regular quiz result');
+          const regularResult = {
+            totalScore: location.state.totalScore,
+            correctAnswers: location.state.correctAnswers,
+            totalQuestions: location.state.totalQuestions,
+            topic: location.state.topic,
+            difficulty: location.state.difficulty,
+            questions: location.state.questions || []
+          };
+          console.log('ResultPage - Setting regular quiz result from location state:', regularResult);
+          setResult(regularResult);
+          setLoading(false);
+          return;
+        }
+
+        // Fallback: Fetch from backend if location state is not available
         if (!attemptId) {
           console.error('ResultPage - No attemptId provided');
           throw new Error("Attempt ID is required");
         }
 
-        console.log('ResultPage - Fetching regular quiz result');
+        console.log('ResultPage - Fetching regular quiz result from backend (fallback)');
         const response = await getQuizAttemptDetails(attemptId);
         if (!response.success) {
           console.error('ResultPage - Failed to fetch quiz results:', response.message);
           throw new Error(response.message || "Failed to fetch quiz results");
         }
 
-        console.log('ResultPage - Setting regular quiz result:', response.data);
-        setResult(response.data);
+        console.log('ResultPage - Setting regular quiz result from backend:', response.data);
+        setResult(response.data.data);
       } catch (err) {
         console.error("ResultPage - Error fetching result:", err);
         setError(err.message || "Failed to load quiz results");
@@ -141,6 +158,8 @@ const ResultPage = () => {
     );
   }
 
+  console.log('ResultPage - Rendering with result:', result);
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 pt-20">
       <div className="max-w-4xl mx-auto">
@@ -158,11 +177,15 @@ const ResultPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-gray-600/50 p-4 rounded-lg">
                   <p className="text-gray-400">Total Score</p>
-                  <p className="text-2xl font-bold text-teal-400">{result.totalScore.toFixed(1)}%</p>
+                  <p className="text-2xl font-bold text-teal-400">
+                    {(result.totalScore || 0).toFixed(1)}%
+                  </p>
                 </div>
                 <div className="bg-gray-600/50 p-4 rounded-lg">
                   <p className="text-gray-400">Correct Answers</p>
-                  <p className="text-2xl font-bold text-teal-400">{result.correctAnswers}/{result.totalQuestions}</p>
+                  <p className="text-2xl font-bold text-teal-400">
+                    {result.correctAnswers || 0}/{result.totalQuestions || 0}
+                  </p>
                 </div>
                 <div className="bg-gray-600/50 p-4 rounded-lg">
                   <p className="text-gray-400">Quiz Type</p>
@@ -173,16 +196,22 @@ const ResultPage = () => {
               </div>
             </div>
 
-            {result.questions && (
+            {result.questions && result.questions.length > 0 && (
               <div className="bg-gray-700/50 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold text-teal-300 mb-4">Question Review</h2>
                 <div className="space-y-4">
                   {result.questions.map((question, index) => (
                     <div key={index} className="bg-gray-600/50 p-4 rounded-lg">
-                      <p className="text-gray-300 mb-2">{question.question}</p>
+                      <p className="text-gray-300 mb-2">
+                        {question.questionId?.question || question.question || 'Question not available'}
+                      </p>
                       <div className="space-y-2">
-                        <p className="text-sm text-gray-400">Your Answer: {question.userAnswer || 'Not answered'}</p>
-                        <p className="text-sm text-gray-400">Correct Answer: {question.correctAnswer}</p>
+                        <p className="text-sm text-gray-400">
+                          Your Answer: {question.selectedOption || question.userAnswer || 'Not answered'}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Correct Answer: {question.questionId?.correctAnswer || question.correctAnswer || 'Not available'}
+                        </p>
                       </div>
                     </div>
                   ))}
