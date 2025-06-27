@@ -70,18 +70,18 @@ const HomePage = () => {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col justify-center items-center bg-gradient-to-br from-black via-gray-900 to-black text-white relative overflow-hidden">
-      {/* Background Animation */}
-      <motion.div className="absolute w-65 h-65 bg-purple-400 rounded-full opacity-20 blur-3xl top-10 left-10 animate-pulse"></motion.div>
-      <motion.div className="absolute w-55 h-55 bg-teal-500 rounded-full opacity-20 blur-3xl bottom-10 right-10 animate-pulse"></motion.div>
+    <div className="w-full h-screen flex flex-col justify-center items-center bg-gradient-to-br from-black via-gray-900 to-black dark:from-black dark:via-gray-900 dark:to-black text-white relative overflow-hidden">
+      {/* Neon Motion Background */}
+      <motion.div className="absolute w-80 h-80 bg-purple-400 rounded-full opacity-30 blur-3xl top-10 left-10 animate-pulse" style={{zIndex:0}}></motion.div>
+      <motion.div className="absolute w-64 h-64 bg-teal-500 rounded-full opacity-30 blur-3xl bottom-10 right-10 animate-pulse" style={{zIndex:0}}></motion.div>
 
       {/* Website Title */}
-      <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="text-6xl font-extrabold text-teal-600 text-center drop-shadow-xl uppercase tracking-wide">
-        India's Got JavaScript Developer 🚀
+      <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="text-6xl font-extrabold bg-gradient-to-r from-teal-300 via-blue-400 to-purple-400 text-transparent bg-clip-text drop-shadow-xl uppercase tracking-wide mb-2">
+        Gear up JavaScript Developers 🚀
       </motion.h1>
 
       {/* Moto */}
-      <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.3 }} className="mt-3 text-xl text-gray-300 text-center italic max-w-2xl">
+      <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.3 }} className="mt-3 text-xl text-blue-200 dark:text-blue-300 text-center italic max-w-2xl">
         Master JavaScript with hands-on coding, quizzes, mock interviews, and real-world challenges.
       </motion.p>
 
@@ -94,9 +94,9 @@ const HomePage = () => {
               setSelectedTopic(topic);
               setShowWarning(false);
             }}
-            className={`px-6 py-3 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl ${
-              selectedTopic === topic ? "bg-teal-400 text-white scale-110" : "bg-gray-800 hover:bg-teal-600 hover:scale-105"
-            }`}
+            className={`px-6 py-3 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl
+              ${selectedTopic === topic ? "bg-light-primary dark:bg-dark-primary text-white scale-110 border-2 border-red-500 ring-2 ring-red-500" : "bg-light-bg-tertiary dark:bg-dark-bg-tertiary hover:bg-light-primary dark:hover:bg-dark-primary hover:scale-105 text-light-text dark:text-dark-text border-2 border-transparent"}
+            `}
           >
             {topic.charAt(0).toUpperCase() + topic.slice(1)}
           </button>
@@ -119,11 +119,9 @@ const HomePage = () => {
                   setDifficulty(level);
                   setShowWarning(false);
                 }}
-                className={`px-6 py-2 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl ${
-                  difficulty === level 
-                    ? "bg-teal-400 text-white scale-110" 
-                    : "bg-gray-800 hover:bg-teal-600 hover:scale-105"
-                }`}
+                className={`px-6 py-2 rounded-lg font-bold transition-all duration-300 text-lg tracking-wide shadow-xl
+                  ${difficulty === level ? "bg-light-primary dark:bg-dark-primary text-white scale-110 border-2 border-red-500 ring-2 ring-red-500" : "bg-light-bg-tertiary dark:bg-dark-bg-tertiary hover:bg-light-primary dark:hover:bg-dark-primary hover:scale-105 text-light-text dark:text-dark-text border-2 border-transparent"}
+                `}
               >
                 {level.charAt(0).toUpperCase() + level.slice(1)}
               </button>
@@ -134,7 +132,7 @@ const HomePage = () => {
             <motion.p 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-red-500 font-semibold mt-2"
+              className="text-light-error dark:text-dark-error font-semibold mt-2"
             >
               Please select a difficulty level to start the quiz.
             </motion.p>
@@ -147,7 +145,7 @@ const HomePage = () => {
         {selectedTopic && (
           <motion.button
             onClick={() => handleStartQuiz(selectedTopic, difficulty)}
-            className="px-8 py-3 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-all shadow-xl"
+            className="px-8 py-3 bg-light-primary dark:bg-dark-primary text-white text-lg font-bold rounded-lg hover:bg-light-primary-hover dark:hover:bg-dark-primary-hover transition-all shadow-xl"
             whileHover={{ scale: 1.05 }}
             disabled={loading}
           >
@@ -165,7 +163,7 @@ const HomePage = () => {
         {selectedTopic && (
           <motion.button
             onClick={() => handleCodingQuestion(selectedTopic)}
-            className="px-8 py-3 bg-purple-500 text-white text-lg font-bold rounded-lg hover:bg-purple-600 transition-all shadow-xl"
+            className="px-8 py-3 bg-light-accent dark:bg-dark-accent text-white text-lg font-bold rounded-lg hover:bg-light-accent-hover dark:hover:bg-dark-accent-hover transition-all shadow-xl"
             whileHover={{ scale: 1.05 }}
           >
             Solve Coding Challenges 💡
@@ -187,8 +185,8 @@ const HomePage = () => {
           <motion.button
             key={text}
             onClick={() => navigate(link)}
-            className="flex items-center gap-3 px-6 py-3 bg-gray-800 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-all shadow-xl"
-            whileHover={{ scale: 1.08 }}
+            className="flex items-center gap-3 px-6 py-3 bg-light-bg-tertiary dark:bg-dark-bg-tertiary text-light-text dark:text-dark-text text-lg font-bold rounded-lg hover:bg-light-primary dark:hover:bg-dark-primary hover:text-white transition-all shadow-xl"
+            whileHover={{ scale: 1.13 }}
           >
             {icon} {text}
           </motion.button>

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { FaMapMarkerAlt, FaBriefcase, FaMoneyBillWave, FaClock, FaShare, FaEllipsisH } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
+import { useTheme } from '../contexts/ThemeContext';
 
 const JobCard = ({ job }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { theme } = useTheme();
 
   // Safe date formatting function
   const formatDate = (dateString) => {
@@ -44,6 +46,13 @@ const JobCard = ({ job }) => {
 
   const closeModal = () => {
     setIsModalOpen(false);
+  };
+
+  const applyBtnStyle = {
+    backgroundColor: theme === 'dark' ? '#1e40af' : '#2563eb',
+    textShadow: '0 1px 4px rgba(0,0,0,0.25)',
+    color: '#fff',
+    fontWeight: 'bold',
   };
 
   return (
@@ -94,14 +103,13 @@ const JobCard = ({ job }) => {
               <FaEllipsisH />
               <span>Details</span>
             </button>
-            <a
-              href={job.applyLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors duration-300"
-            >
+            <button
+              onClick={() => window.open(job.applyLink, '_blank', 'noopener,noreferrer')}
+              className="flex-1 flex items-center justify-center gap-2 font-bold py-2 px-4 rounded transition-colors duration-300 shadow-sm text-white"
+              style={applyBtnStyle}
+              aria-label="Apply Now">
               Apply Now
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -167,14 +175,13 @@ const JobCard = ({ job }) => {
               >
                 Close
               </button>
-              <a
-                href={job.applyLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-300"
-              >
+              <button
+                onClick={() => window.open(job.applyLink, '_blank', 'noopener,noreferrer')}
+                className="px-4 py-2 font-bold rounded-lg transition-colors duration-300 shadow-sm text-white"
+                style={applyBtnStyle}
+                aria-label="Apply Now">
                 Apply Now
-              </a>
+              </button>
             </div>
           </div>
         </div>

@@ -25,13 +25,13 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-          <div className="bg-gray-800 p-8 rounded-lg text-center">
-            <h2 className="text-xl font-semibold text-red-400 mb-4">Something went wrong</h2>
-            <p className="text-gray-300 mb-4">Please try refreshing the page</p>
+        <div className="min-h-screen bg-light-bg dark:bg-dark-bg flex items-center justify-center">
+          <div className="bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 rounded-lg text-center">
+            <h2 className="text-xl font-semibold text-light-error dark:text-dark-error mb-4">Something went wrong</h2>
+            <p className="text-light-text-secondary dark:text-dark-text-secondary mb-4">Please try refreshing the page</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors"
+              className="px-4 py-2 bg-light-primary dark:bg-dark-primary text-white rounded hover:bg-light-primary-hover dark:hover:bg-dark-primary-hover transition-colors"
             >
               Refresh Page
             </button>
@@ -46,8 +46,8 @@ class ErrorBoundary extends React.Component {
 
 // Loading component
 const LoadingSpinner = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+  <div className="flex items-center justify-center min-h-screen bg-light-bg dark:bg-dark-bg">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-light-primary dark:border-dark-primary"></div>
   </div>
 );
 
@@ -66,13 +66,13 @@ const ResultPage = lazy(() => {
       console.error('App - Error loading ResultPage:', error);
       return {
         default: () => (
-          <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-            <div className="bg-gray-800 p-8 rounded-lg text-center">
-              <h2 className="text-xl font-semibold text-red-400 mb-4">Error Loading Results</h2>
-              <p className="text-gray-300 mb-4">Unable to load the results page. Please try again.</p>
+          <div className="min-h-screen bg-light-bg dark:bg-dark-bg flex items-center justify-center">
+            <div className="bg-light-bg-secondary dark:bg-dark-bg-secondary p-8 rounded-lg text-center">
+              <h2 className="text-xl font-semibold text-light-error dark:text-dark-error mb-4">Error Loading Results</h2>
+              <p className="text-light-text-secondary dark:text-dark-text-secondary mb-4">Unable to load the results page. Please try again.</p>
               <button
                 onClick={() => window.location.href = '/'}
-                className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors"
+                className="px-4 py-2 bg-light-primary dark:bg-dark-primary text-white rounded hover:bg-light-primary-hover dark:hover:bg-dark-primary-hover transition-colors"
               >
                 Return to Home
               </button>
@@ -170,7 +170,7 @@ const AppContent = () => {
 
   if (showUnauthorized) {
     return (
-      <div className="min-h-screen bg-gray-900">
+      <div className="min-h-screen bg-light-bg dark:bg-dark-bg">
         <Navbar isAuthenticated={isAuthenticated} />
         <UnauthorizedAccess />
       </div>
@@ -178,7 +178,7 @@ const AppContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-light-bg dark:bg-dark-bg">
       <Navbar isAuthenticated={isAuthenticated} />
       <Toaster
         position="top-center"
@@ -186,8 +186,8 @@ const AppContent = () => {
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#333',
-            color: '#fff',
+            background: 'var(--toast-bg)',
+            color: 'var(--toast-color)',
           },
         }}
       />
@@ -296,8 +296,8 @@ const App = () => {
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#333',
-            color: '#fff',
+            background: 'var(--toast-bg)',
+            color: 'var(--toast-color)',
           },
         }}
       />

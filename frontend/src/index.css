@@ -5,31 +5,56 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Light theme (default) */
+:root {
+  color: #1e293b;
+  background-color: #ffffff;
+  
+  /* Toast variables for light theme */
+  --toast-bg: #f8fafc;
+  --toast-color: #1e293b;
+}
+
+/* Dark theme */
+:root.dark {
+  color: #f8fafc;
+  background-color: #0f172a;
+  
+  /* Toast variables for dark theme */
+  --toast-bg: #1e293b;
+  --toast-color: #f8fafc;
+}
+
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #0d9488;
   text-decoration: inherit;
 }
+
 a:hover {
-  color: #535bf2;
+  color: #0f766e;
+}
+
+:root.dark a {
+  color: #14b8a6;
+}
+
+:root.dark a:hover {
+  color: #0d9488;
 }
 
 body {
   margin: 0;
   width: 100%;
   height: 100%;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
-
 
 h1 {
   font-size: 3.2em;
@@ -43,27 +68,42 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #f1f5f9;
+  color: #1e293b;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.25s ease;
 }
+
+:root.dark button {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
 button:hover {
-  border-color: #646cff;
+  border-color: #0d9488;
 }
+
+:root.dark button:hover {
+  border-color: #14b8a6;
+}
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Ensure smooth theme transitions */
+html {
+  transition: background-color 0.3s ease;
+}
+
+/* Override transition for specific elements that shouldn't transition */
+.transition-none,
+.transition-none * {
+  transition: none !important;
 }
