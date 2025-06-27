@@ -55,4 +55,36 @@ export const protect = async (req, res, next) => {
     sendMetric('AuthMiddlewareError', 1, 'Count');
     res.status(500).json({ message: 'Server error', error: error.message });
   }
+};
+
+// Admin middleware - check if user is admin
+export const admin = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authorized, please login' });
+    }
+
+    if (req.user.role !== 'admin') {
+      logger.warn('Non-admin access attempt', {
+        userId: req.user._id,
+        userRole: req.user.role,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
+      sendMetric('NonAdminAccessAttempt', 1, 'Count');
+
+      return res.status(403).json({ message: 'Not authorized, admin access required' });
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Admin middleware error', {
+      error: error.message,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+    sendMetric('AdminMiddlewareError', 1, 'Count');
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 }; 

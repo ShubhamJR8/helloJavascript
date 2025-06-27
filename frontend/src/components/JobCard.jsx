@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
-import { FaMapMarkerAlt, FaBriefcase, FaMoneyBillWave, FaClock, FaBookmark, FaShare, FaEllipsisH } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaBriefcase, FaMoneyBillWave, FaClock, FaShare, FaEllipsisH } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
 
-const JobCard = ({ job, onSaveJob }) => {
+const JobCard = ({ job }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
 
-  const handleSaveJob = (e) => {
-    e.stopPropagation();
-    setIsSaved(!isSaved);
-    onSaveJob(job.id);
+  // Safe date formatting function
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return 'Recently';
+      
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Recently';
+      }
+      
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Recently';
+    }
   };
 
   const handleShare = async (e) => {
@@ -45,15 +57,6 @@ const JobCard = ({ job, onSaveJob }) => {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={handleSaveJob}
-                className={`p-1.5 rounded-full transition-colors duration-300 ${
-                  isSaved ? 'text-blue-500' : 'text-gray-400 hover:text-blue-500'
-                }`}
-                aria-label={isSaved ? 'Unsave job' : 'Save job'}
-              >
-                <FaBookmark />
-              </button>
-              <button
                 onClick={handleShare}
                 className="p-1.5 rounded-full text-gray-400 hover:text-blue-500 transition-colors duration-300"
                 aria-label="Share job"
@@ -76,7 +79,7 @@ const JobCard = ({ job, onSaveJob }) => {
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <FaClock className="text-blue-500 flex-shrink-0" />
-              <span className="truncate">{formatDistanceToNow(new Date(job.uploadDate), { addSuffix: true })}</span>
+              <span className="truncate">{formatDate(job.uploadDate)}</span>
             </div>
           </div>
         </div>
@@ -85,7 +88,7 @@ const JobCard = ({ job, onSaveJob }) => {
           <div className="flex gap-2">
             <button
               onClick={openModal}
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-white font-medium py-2 px-4 rounded transition-colors duration-300"
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded transition-colors duration-300"
               aria-label="View details"
             >
               <FaEllipsisH />
@@ -134,7 +137,7 @@ const JobCard = ({ job, onSaveJob }) => {
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <FaClock className="text-blue-500" />
-                <span>{formatDistanceToNow(new Date(job.uploadDate), { addSuffix: true })}</span>
+                <span>{formatDate(job.uploadDate)}</span>
               </div>
             </div>
 
@@ -146,7 +149,7 @@ const JobCard = ({ job, onSaveJob }) => {
             <div className="mb-6">
               <h4 className="text-lg font-semibold text-gray-800 mb-2">Required Skills</h4>
               <div className="flex flex-wrap gap-2">
-                {job.skills.map((skill, index) => (
+                {job.skills && job.skills.map((skill, index) => (
                   <span 
                     key={index}
                     className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium"
