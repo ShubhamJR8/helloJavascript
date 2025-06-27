@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import JobCard from './JobCard';
 import JobFilters from './JobFilters';
 import { FaSpinner, FaExclamationCircle, FaRedo } from 'react-icons/fa';
 import { motion } from "framer-motion";
 import { FaBriefcase, FaMapMarkerAlt, FaMoneyBillWave, FaClock } from "react-icons/fa";
 import { fetchJobs } from "../apis/jobApi";
-import UnderDevelopment from './UnderDevelopment';
 
 const JobListings = () => {
   const [filters, setFilters] = useState({
@@ -24,10 +23,40 @@ const JobListings = () => {
     totalJobs: 0
   });
 
+  // Search validation and optimization
+  const isValidSearch = useCallback((searchTerm) => {
+    if (!searchTerm || searchTerm.trim().length === 0) return true; // Empty search is valid
+    return searchTerm.trim().length >= 3; // Minimum 3 characters
+  }, []);
+
+  const shouldPerformSearch = useCallback((searchTerm) => {
+    // Don't search if less than 3 characters (unless empty)
+    if (searchTerm && searchTerm.trim().length > 0 && searchTerm.trim().length < 3) {
+      return false;
+    }
+    return true;
+  }, []);
+
+  // Debounced search effect with validation
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (shouldPerformSearch(filters.search)) {
+        setPagination(prev => ({ ...prev, currentPage: 1 })); // Reset to first page on search
+      }
+    }, 800); // Increased delay to 800ms for better debouncing
+
+    return () => clearTimeout(timeoutId);
+  }, [filters.search, shouldPerformSearch]);
+
   // Fetch jobs when filters change
   useEffect(() => {
     const loadJobs = async () => {
       try {
+        // Don't make API call if search is invalid
+        if (!shouldPerformSearch(filters.search)) {
+          return;
+        }
+
         setIsLoading(true);
         setError(null);
         
@@ -43,23 +72,22 @@ const JobListings = () => {
           totalJobs: response.totalJobs
         });
       } catch (error) {
-        setError('Failed to fetch jobs. Please try again later.');
         console.error('Error fetching jobs:', error);
+        
+        if (error.response?.status === 429) {
+          setError('Too many search requests. Please wait a moment before searching again.');
+        } else if (error.response?.status === 500) {
+          setError('Server error. Please try again later.');
+        } else {
+          setError('Failed to fetch jobs. Please try again later.');
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     loadJobs();
-  }, [filters, pagination.currentPage]);
-
-  const handleSaveJob = async (jobId) => {
-    try {
-      // In a real app, this would make an API call to save the job
-    } catch (error) {
-      console.error('Error saving job:', error);
-    }
-  };
+  }, [filters, pagination.currentPage, shouldPerformSearch]);
 
   const handleClearFilters = () => {
     setFilters({
@@ -75,10 +103,11 @@ const JobListings = () => {
     setPagination(prev => ({ ...prev, currentPage: newPage }));
   };
 
+  // Show search hint if user types less than 3 characters
+  const showSearchHint = filters.search && filters.search.trim().length > 0 && filters.search.trim().length < 3;
+
   return (
-    <>
-    <UnderDevelopment />
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-16">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Job Listings</h1>
       
       <JobFilters 
@@ -86,6 +115,15 @@ const JobListings = () => {
         setFilters={setFilters} 
         onClearFilters={handleClearFilters} 
       />
+
+      {/* Search hint */}
+      {showSearchHint && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p className="text-blue-700 text-sm">
+            💡 Type at least 3 characters to search jobs
+          </p>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12">
@@ -106,7 +144,12 @@ const JobListings = () => {
         </div>
       ) : jobs.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-          <p className="text-gray-600">No jobs found matching your criteria.</p>
+          <p className="text-gray-600">
+            {filters.search && filters.search.trim().length >= 3
+              ? `No jobs found matching "${filters.search}". Try different keywords or clear filters.`
+              : 'No jobs found matching your criteria.'
+            }
+          </p>
           <button 
             onClick={handleClearFilters}
             className="mt-4 flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors duration-300 font-medium mx-auto"
@@ -119,18 +162,37 @@ const JobListings = () => {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {jobs.map(job => (
-              <JobCard key={job._id} job={job} onSaveJob={handleSaveJob} />
+              <JobCard key={job._id} job={job} />
             ))}
+          </div>
+
+          {/* Job count and pagination info */}
+          <div className="mt-6 text-center text-gray-600">
+            <p>Showing {jobs.length} of {pagination.totalJobs} jobs</p>
+            {pagination.totalPages > 1 && (
+              <p className="mt-2">Page {pagination.currentPage} of {pagination.totalPages}</p>
+            )}
           </div>
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
             <div className="mt-8 flex justify-center gap-2">
+              {/* Previous button */}
+              {pagination.currentPage > 1 && (
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded transition-colors"
+                >
+                  Previous
+                </button>
+              )}
+
+              {/* Page numbers */}
               {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
                   onClick={() => handlePageChange(page)}
-                  className={`px-4 py-2 rounded ${
+                  className={`px-4 py-2 rounded transition-colors ${
                     page === pagination.currentPage
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -139,13 +201,22 @@ const JobListings = () => {
                   {page}
                 </button>
               ))}
+
+              {/* Next button */}
+              {pagination.currentPage < pagination.totalPages && (
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded transition-colors"
+                >
+                  Next
+                </button>
+              )}
             </div>
           )}
         </>
       )}
     </div>
-    </>
   );
 };
 
-export default JobListings; 
+export default JobListings;

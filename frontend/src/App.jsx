@@ -84,6 +84,7 @@ const ResultPage = lazy(() => {
 });
 const MockInterviews = lazy(() => import('./pages/MockInterviews'));
 const JobListings = lazy(() => import('./components/JobListings'));
+const AdminJobManager = lazy(() => import('./pages/AdminJobManager'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
@@ -275,6 +276,7 @@ const AppContent = () => {
                 <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
                 <Route path="/concepts/event-loop" element={<EventLoop />} />
                 <Route path="/blogs" element={<Blogs />} />
+                <Route path="/admin-job-manager" element={<AdminJobManager />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
@@ -287,7 +289,7 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster
         position="top-center"
         reverseOrder={false}
