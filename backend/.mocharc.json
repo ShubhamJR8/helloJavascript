@@ -1,5 +1,7 @@
 {
   "extension": ["js"],
   "spec": "test/**/*.test.js",
-  "recursive": true
+  "recursive": true,
+  "require": "test/setup.js",
+  "timeout": 10000
 }

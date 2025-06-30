@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
 import submissionRoutes from './routes/submissionRoutes.js';
 import quizAttemptRoutes from './routes/quizAttemptRoutes.js';
+import blogRoutes from './routes/blogRoutes.js';
 import { sendMetric } from './utils/cloudwatch.js';
 import { logger } from './utils/logger.js';
 import limiter from './middleware/rateLimiter.js';
@@ -39,6 +40,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/quiz-attempts', quizAttemptRoutes);
+app.use('/api/blogs', blogRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
