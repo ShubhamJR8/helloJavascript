@@ -96,6 +96,9 @@ const CodingQuestions = lazy(() => import('./pages/CodingQuestions'));
 const JavaScriptConceptsVisual = lazy(() => import('./pages/JavaScriptConceptsVisual'));
 const EventLoop = lazy(() => import('./pages/concepts/EventLoop'));
 const Blogs = lazy(() => import('./pages/Blogs'));
+const TopicBlogs = lazy(() => import('./pages/TopicBlogs'));
+const BlogDetail = lazy(() => import('./pages/BlogDetail'));
+const AdminBlogManager = lazy(() => import('./pages/AdminBlogManager'));
 
 const NavigationGuard = ({ children }) => {
   const location = useLocation();
@@ -276,7 +279,10 @@ const AppContent = () => {
                 <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
                 <Route path="/concepts/event-loop" element={<EventLoop />} />
                 <Route path="/blogs" element={<Blogs />} />
+                <Route path="/blogs/:topic" element={<TopicBlogs />} />
+                <Route path="/blog/:slug" element={<BlogDetail />} />
                 <Route path="/admin-job-manager" element={<AdminJobManager />} />
+                <Route path="/admin-blog-manager" element={<AdminBlogManager />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
