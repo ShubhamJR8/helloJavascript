@@ -19,11 +19,10 @@ const jobSchema = new mongoose.Schema({
   experience: {
     type: String,
     required: true,
-    enum: ['Entry', '2-5 years', '5+ years', '10+ years']
+    enum: ['Entry', 'Mid', 'Senior', '2-5 years', '5+ years', '10+ years']
   },
   salary: {
-    type: String,
-    required: true
+    type: String
   },
   jobType: {
     type: String,
@@ -43,8 +42,7 @@ const jobSchema = new mongoose.Schema({
     default: Date.now
   },
   applyLink: {
-    type: String,
-    required: true
+    type: String
   },
   postedBy: {
     type: mongoose.Schema.Types.ObjectId,
