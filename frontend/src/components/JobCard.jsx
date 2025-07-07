@@ -59,12 +59,16 @@ const JobCard = ({ job }) => {
     <>
       <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex flex-col h-full border border-gray-100">
         <div className="p-4 border-b border-gray-100">
-          <div className="flex justify-between items-start">
-            <div className="flex-1 pr-4">
-              <h2 className="text-lg font-bold text-gray-800 truncate">{job.title}</h2>
-              <h3 className="text-base text-blue-600 font-medium truncate">{job.company}</h3>
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-bold text-gray-800 leading-tight line-clamp-2 mb-1 job-title" title={job.title}>
+                {job.title}
+              </h2>
+              <h3 className="text-base text-blue-600 font-medium truncate" title={job.company}>
+                {job.company}
+              </h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex-shrink-0">
               <button
                 onClick={handleShare}
                 className="p-1.5 rounded-full text-gray-400 hover:text-blue-500 transition-colors duration-300"
@@ -80,16 +84,22 @@ const JobCard = ({ job }) => {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 text-gray-600">
               <FaBriefcase className="text-blue-500 flex-shrink-0" />
-              <span className="truncate">{job.experience}</span>
+              <span className="truncate" title={job.experience}>{job.experience}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <FaMapMarkerAlt className="text-blue-500 flex-shrink-0" />
-              <span className="truncate">{job.location}</span>
+              <span className="truncate" title={job.location}>{job.location}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <FaClock className="text-blue-500 flex-shrink-0" />
               <span className="truncate">{formatDate(job.uploadDate)}</span>
             </div>
+            {job.salary && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <FaMoneyBillWave className="text-blue-500 flex-shrink-0" />
+                <span className="truncate" title={job.salary}>{job.salary}</span>
+              </div>
+            )}
           </div>
         </div>
 
