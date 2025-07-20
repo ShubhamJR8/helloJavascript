@@ -4,6 +4,8 @@ backend/node_modules/
 /node_modules/
 package-lock.json
 backend/.nyc_output/
+frontend/package-lock.json
+backend/package-lock.json
 
 # Build files
 frontend/build/
