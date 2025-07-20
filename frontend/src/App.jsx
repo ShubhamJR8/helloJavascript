@@ -95,6 +95,11 @@ const ConceptBasedMCQs = lazy(() => import('./pages/ConceptBasedMCQs'));
 const CodingQuestions = lazy(() => import('./pages/CodingQuestions'));
 const JavaScriptConceptsVisual = lazy(() => import('./pages/JavaScriptConceptsVisual'));
 const EventLoop = lazy(() => import('./pages/concepts/EventLoop'));
+const Closures = lazy(() => import('./pages/concepts/Closures'));
+const Prototypes = lazy(() => import('./pages/concepts/Prototypes'));
+const Hoisting = lazy(() => import('./pages/concepts/Hoisting'));
+const ScopeChain = lazy(() => import('./pages/concepts/ScopeChain'));
+const AsyncAwait = lazy(() => import('./pages/concepts/AsyncAwait'));
 const Blogs = lazy(() => import('./pages/Blogs'));
 const TopicBlogs = lazy(() => import('./pages/TopicBlogs'));
 const BlogDetail = lazy(() => import('./pages/BlogDetail'));
@@ -278,6 +283,11 @@ const AppContent = () => {
                 <Route path="/coding-questions" element={<CodingQuestions />} />
                 <Route path="/javascript-concepts-visual" element={<JavaScriptConceptsVisual />} />
                 <Route path="/concepts/event-loop" element={<EventLoop />} />
+                <Route path="/concepts/closures" element={<Closures />} />
+                <Route path="/concepts/prototypes" element={<Prototypes />} />
+                <Route path="/concepts/hoisting" element={<Hoisting />} />
+                <Route path="/concepts/scope-chain" element={<ScopeChain />} />
+                <Route path="/concepts/async-await" element={<AsyncAwait />} />
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="/blogs/:topic" element={<TopicBlogs />} />
                 <Route path="/blog/:slug" element={<BlogDetail />} />

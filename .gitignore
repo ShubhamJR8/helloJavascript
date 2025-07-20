@@ -9,6 +9,7 @@ backend/.nyc_output/
 frontend/build/
 backend/build/
 dist/
+frontend/dist/
 .turbo/
 .parcel-cache/
 .next/
